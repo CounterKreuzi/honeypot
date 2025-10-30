@@ -4,6 +4,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { AppDataSource } from './config/database';
 import authRoutes from './routes/auth.routes';
+import beekeeperRoutes from './routes/beekeeper.routes';
 
 dotenv.config();
 
@@ -26,6 +27,7 @@ app.get('/health', (req, res) => {
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/beekeepers', beekeeperRoutes);
 
 // 404 Handler
 app.use((req, res) => {
@@ -42,7 +44,8 @@ AppDataSource.initialize()
     
     app.listen(PORT, () => {
       console.log(`🚀 Server running on http://localhost:${PORT}`);
-      console.log(`📝 API Docs: http://localhost:${PORT}/health`);
+      console.log(`📝 Auth API: http://localhost:${PORT}/api/auth`);
+      console.log(`🍯 Beekeeper API: http://localhost:${PORT}/api/beekeepers`);
     });
   })
   .catch((error) => {

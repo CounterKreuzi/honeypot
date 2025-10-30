@@ -1,0 +1,379 @@
+import { Response } from 'express';
+import { AppDataSource } from '../config/database';
+import { Beekeeper } from '../entities/Beekeeper';
+import { HoneyType } from '../entities/HoneyType';
+import { AuthRequest } from '../middleware/auth';
+import {
+  updateProfileSchema,
+  addHoneyTypeSchema,
+  updateHoneyTypeSchema,
+  geoSearchSchema,
+} from '../utils/beekeeperValidation';
+
+const beekeeperRepository = AppDataSource.getRepository(Beekeeper);
+const honeyTypeRepository = AppDataSource.getRepository(HoneyType);
+
+// Update Beekeeper Profile
+export const updateProfile = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+
+    // Validate request
+    const { error, value } = updateProfileSchema.validate(req.body);
+    if (error) {
+      return res.status(400).json({
+        success: false,
+        message: error.details[0].message,
+      });
+    }
+
+    // Find beekeeper
+    const beekeeper = await beekeeperRepository.findOne({
+      where: { user: { id: userId } },
+    });
+
+    if (!beekeeper) {
+      return res.status(404).json({
+        success: false,
+        message: 'Imker-Profil nicht gefunden',
+      });
+    }
+
+    // Update fields
+    Object.assign(beekeeper, value);
+
+    // Activate profile if location is set
+    if (value.latitude && value.longitude && value.address) {
+      beekeeper.isActive = true;
+    }
+
+    await beekeeperRepository.save(beekeeper);
+
+    res.json({
+      success: true,
+      message: 'Profil erfolgreich aktualisiert',
+      data: beekeeper,
+    });
+  } catch (error) {
+    console.error('Update profile error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Fehler beim Aktualisieren des Profils',
+    });
+  }
+};
+
+// Get Own Beekeeper Profile
+export const getMyProfile = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+
+    const beekeeper = await beekeeperRepository.findOne({
+      where: { user: { id: userId } },
+      relations: ['honeyTypes'],
+    });
+
+    if (!beekeeper) {
+      return res.status(404).json({
+        success: false,
+        message: 'Imker-Profil nicht gefunden',
+      });
+    }
+
+    res.json({
+      success: true,
+      data: beekeeper,
+    });
+  } catch (error) {
+    console.error('Get my profile error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Fehler beim Laden des Profils',
+    });
+  }
+};
+
+// Add Honey Type
+export const addHoneyType = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+
+    // Validate request
+    const { error, value } = addHoneyTypeSchema.validate(req.body);
+    if (error) {
+      return res.status(400).json({
+        success: false,
+        message: error.details[0].message,
+      });
+    }
+
+    // Find beekeeper
+    const beekeeper = await beekeeperRepository.findOne({
+      where: { user: { id: userId } },
+    });
+
+    if (!beekeeper) {
+      return res.status(404).json({
+        success: false,
+        message: 'Imker-Profil nicht gefunden',
+      });
+    }
+
+    // Create honey type
+    const honeyType = honeyTypeRepository.create({
+      ...value,
+      beekeeper,
+    });
+
+    await honeyTypeRepository.save(honeyType);
+
+    res.status(201).json({
+      success: true,
+      message: 'Honigsorte erfolgreich hinzugefügt',
+      data: honeyType,
+    });
+  } catch (error) {
+    console.error('Add honey type error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Fehler beim Hinzufügen der Honigsorte',
+    });
+  }
+};
+
+// Update Honey Type
+export const updateHoneyType = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const { honeyTypeId } = req.params;
+
+    // Validate request
+    const { error, value } = updateHoneyTypeSchema.validate(req.body);
+    if (error) {
+      return res.status(400).json({
+        success: false,
+        message: error.details[0].message,
+      });
+    }
+
+    // Find honey type and verify ownership
+    const honeyType = await honeyTypeRepository.findOne({
+      where: { id: honeyTypeId },
+      relations: ['beekeeper', 'beekeeper.user'],
+    });
+
+    if (!honeyType) {
+      return res.status(404).json({
+        success: false,
+        message: 'Honigsorte nicht gefunden',
+      });
+    }
+
+    if (honeyType.beekeeper.user.id !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Keine Berechtigung für diese Honigsorte',
+      });
+    }
+
+    // Update fields
+    Object.assign(honeyType, value);
+    await honeyTypeRepository.save(honeyType);
+
+    res.json({
+      success: true,
+      message: 'Honigsorte erfolgreich aktualisiert',
+      data: honeyType,
+    });
+  } catch (error) {
+    console.error('Update honey type error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Fehler beim Aktualisieren der Honigsorte',
+    });
+  }
+};
+
+// Delete Honey Type
+export const deleteHoneyType = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const { honeyTypeId } = req.params;
+
+    // Find honey type and verify ownership
+    const honeyType = await honeyTypeRepository.findOne({
+      where: { id: honeyTypeId },
+      relations: ['beekeeper', 'beekeeper.user'],
+    });
+
+    if (!honeyType) {
+      return res.status(404).json({
+        success: false,
+        message: 'Honigsorte nicht gefunden',
+      });
+    }
+
+    if (honeyType.beekeeper.user.id !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Keine Berechtigung für diese Honigsorte',
+      });
+    }
+
+    await honeyTypeRepository.remove(honeyType);
+
+    res.json({
+      success: true,
+      message: 'Honigsorte erfolgreich gelöscht',
+    });
+  } catch (error) {
+    console.error('Delete honey type error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Fehler beim Löschen der Honigsorte',
+    });
+  }
+};
+
+// Get All Active Beekeepers (Public)
+export const getAllBeekeepers = async (req: AuthRequest, res: Response) => {
+  try {
+    const beekeepers = await beekeeperRepository.find({
+      where: { isActive: true },
+      relations: ['honeyTypes'],
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        logo: true,
+        photo: true,
+        latitude: true,
+        longitude: true,
+        address: true,
+        city: true,
+        postalCode: true,
+        country: true,
+        phone: true,
+        website: true,
+        openingHours: true,
+      },
+    });
+
+    res.json({
+      success: true,
+      data: beekeepers,
+      count: beekeepers.length,
+    });
+  } catch (error) {
+    console.error('Get all beekeepers error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Fehler beim Laden der Imker',
+    });
+  }
+};
+
+// Get Single Beekeeper by ID (Public)
+export const getBeekeeperById = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const beekeeper = await beekeeperRepository.findOne({
+      where: { id, isActive: true },
+      relations: ['honeyTypes'],
+    });
+
+    if (!beekeeper) {
+      return res.status(404).json({
+        success: false,
+        message: 'Imker nicht gefunden',
+      });
+    }
+
+    res.json({
+      success: true,
+      data: beekeeper,
+    });
+  } catch (error) {
+    console.error('Get beekeeper by id error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Fehler beim Laden des Imkers',
+    });
+  }
+};
+
+// Geo Search - Find Beekeepers nearby (Public)
+export const searchNearby = async (req: AuthRequest, res: Response) => {
+  try {
+    // Validate query params
+    const { error, value } = geoSearchSchema.validate(req.query);
+    if (error) {
+      return res.status(400).json({
+        success: false,
+        message: error.details[0].message,
+      });
+    }
+
+    const { latitude, longitude, radius } = value;
+
+    // Haversine formula for distance calculation
+    const query = `
+      SELECT 
+        b.*,
+        (
+          6371 * acos(
+            cos(radians($1)) * cos(radians(b.latitude)) *
+            cos(radians(b.longitude) - radians($2)) +
+            sin(radians($1)) * sin(radians(b.latitude))
+          )
+        ) AS distance
+      FROM beekeepers b
+      WHERE b."isActive" = true
+      HAVING (
+        6371 * acos(
+          cos(radians($1)) * cos(radians(b.latitude)) *
+          cos(radians(b.longitude) - radians($2)) +
+          sin(radians($1)) * sin(radians(b.latitude))
+        )
+      ) <= $3
+      ORDER BY distance ASC
+    `;
+
+    const beekeepers = await AppDataSource.query(query, [
+      latitude,
+      longitude,
+      radius,
+    ]);
+
+    // Load honey types for each beekeeper
+    const beekeepersWithHoney = await Promise.all(
+      beekeepers.map(async (beekeeper: any) => {
+        const honeyTypes = await honeyTypeRepository.find({
+          where: { beekeeper: { id: beekeeper.id } },
+        });
+        return {
+          ...beekeeper,
+          honeyTypes,
+        };
+      })
+    );
+
+    res.json({
+      success: true,
+      data: beekeepersWithHoney,
+      count: beekeepersWithHoney.length,
+      searchParams: {
+        latitude,
+        longitude,
+        radius,
+      },
+    });
+  } catch (error) {
+    console.error('Search nearby error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Fehler bei der Suche',
+    });
+  }
+};
