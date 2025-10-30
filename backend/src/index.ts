@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { AppDataSource } from './config/database';
+import authRoutes from './routes/auth.routes';
 
 dotenv.config();
 
@@ -23,6 +24,17 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Routes
+app.use('/api/auth', authRoutes);
+
+// 404 Handler
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: 'Route nicht gefunden',
+  });
+});
+
 // Database Connection
 AppDataSource.initialize()
   .then(() => {
@@ -30,6 +42,7 @@ AppDataSource.initialize()
     
     app.listen(PORT, () => {
       console.log(`🚀 Server running on http://localhost:${PORT}`);
+      console.log(`📝 API Docs: http://localhost:${PORT}/health`);
     });
   })
   .catch((error) => {
