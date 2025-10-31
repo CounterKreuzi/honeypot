@@ -6,6 +6,7 @@ import { useBeekeeperStore } from '@/lib/store/beekeeperStore';
 import { beekeepersApi } from '@/lib/api/beekeepers';
 import { Beekeeper } from '@/types/api';
 
+// Dynamic import to avoid SSR issues with Leaflet
 const BeekeeperMap = dynamic(() => import('@/components/map/BeekeeperMap'), {
   ssr: false,
   loading: () => (
@@ -45,6 +46,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-amber-50 to-yellow-50">
+      {/* Header */}
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
@@ -57,14 +59,18 @@ export default function Home() {
         </div>
       </header>
 
+      {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Sidebar */}
           <div className="lg:col-span-1 space-y-4">
+            {/* Stats Card */}
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-lg font-semibold mb-4">📊 Statistik</h2>
               <div className="space-y-2">
                 <p className="text-gray-600">
-                  <span className="font-bold text-amber-600">{beekeepers.length}</span> Imker registriert
+                  <span className="font-bold text-amber-600">{beekeepers.length}</span> Imker
+                  registriert
                 </p>
                 <p className="text-gray-600">
                   <span className="font-bold text-amber-600">
@@ -75,11 +81,10 @@ export default function Home() {
               </div>
             </div>
 
+            {/* Selected Beekeeper Details */}
             {selectedBeekeeperDetail && (
               <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-lg font-semibold mb-4">
-                  🍯 {selectedBeekeeperDetail.name}
-                </h2>
+                <h2 className="text-lg font-semibold mb-4">🍯 {selectedBeekeeperDetail.name}</h2>
                 {selectedBeekeeperDetail.description && (
                   <p className="text-gray-600 text-sm mb-4">
                     {selectedBeekeeperDetail.description}
@@ -88,7 +93,7 @@ export default function Home() {
 
                 <div className="space-y-2 text-sm">
                   <p className="text-gray-700">
-                    �� {selectedBeekeeperDetail.address}
+                    📍 {selectedBeekeeperDetail.address}
                     {selectedBeekeeperDetail.city && `, ${selectedBeekeeperDetail.city}`}
                   </p>
                   {selectedBeekeeperDetail.phone && (
@@ -98,7 +103,7 @@ export default function Home() {
                     <p className="text-gray-700">
                       🌐{' '}
                       
-                        <a href={selectedBeekeeperDetail.website}
+                        href={selectedBeekeeperDetail.website}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-amber-600 hover:underline"
@@ -130,6 +135,7 @@ export default function Home() {
             )}
           </div>
 
+          {/* Map */}
           <div className="lg:col-span-2">
             <div className="bg-white rounded-lg shadow p-4">
               <h2 className="text-lg font-semibold mb-4">🗺️ Imker in deiner Nähe</h2>
