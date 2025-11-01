@@ -1,6 +1,7 @@
 {
   "name": "honeypot-backend",
   "version": "1.0.0",
+  "main": "dist/index.js",
   "scripts": {
     "dev": "nodemon src/index.ts",
     "build": "tsc",
