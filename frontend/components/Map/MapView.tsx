@@ -20,8 +20,8 @@ if (typeof window !== 'undefined') {
 // Österreich Bounds
 const AUSTRIA_CENTER: [number, number] = [47.5, 13.5];
 const AUSTRIA_BOUNDS: [[number, number], [number, number]] = [
-  [46.4, 9.5],   // Südwest
-  [49.0, 17.2]   // Nordost
+  [46.4, 9.5],
+  [49.0, 17.2]
 ];
 
 // Map Controller Component
@@ -35,26 +35,33 @@ function MapController({
   const map = useMap();
 
   useEffect(() => {
+    if (!map) return;
+
     if (userLocation && beekeepers.length > 0) {
-      // Finde nächsten Imker
-      const nearest = beekeepers.reduce((prev, curr) => {
-        const prevDist = calculateDistance(userLocation, [prev.latitude, prev.longitude]);
-        const currDist = calculateDistance(userLocation, [curr.latitude, curr.longitude]);
-        return currDist < prevDist ? curr : prev;
-      });
+      try {
+        // Finde nächsten Imker
+        const nearest = beekeepers.reduce((prev, curr) => {
+          const prevDist = calculateDistance(userLocation, [prev.latitude, prev.longitude]);
+          const currDist = calculateDistance(userLocation, [curr.latitude, curr.longitude]);
+          return currDist < prevDist ? curr : prev;
+        });
 
-      // Erstelle Bounds für User + nächster Imker
-      const bounds = L.latLngBounds([
-        userLocation,
-        [nearest.latitude, nearest.longitude]
-      ]);
+        // Erstelle Bounds für User + nächster Imker
+        const bounds = L.latLngBounds([
+          userLocation,
+          [nearest.latitude, nearest.longitude]
+        ]);
 
-      map.fitBounds(bounds, {
-        padding: [50, 50],
-        maxZoom: 14,
-        animate: true,
-        duration: 1.5
-      });
+        map.fitBounds(bounds, {
+          padding: [50, 50],
+          maxZoom: 14,
+          animate: true,
+          duration: 1.5
+        });
+      } catch (error) {
+        console.error('Map bounds error:', error);
+        map.setView(userLocation, 12);
+      }
     } else if (userLocation) {
       // Nur User-Standort
       map.setView(userLocation, 12, { animate: true, duration: 1.5 });
@@ -83,7 +90,7 @@ export const MapView = () => {
     setRequestingLocation(true);
     
     if (!navigator.geolocation) {
-      setLocationError('Geolocation wird von deinem Browser nicht unterstützt');
+      setLocationError('Geolocation wird nicht unterstützt');
       setRequestingLocation(false);
       return;
     }
@@ -113,13 +120,23 @@ export const MapView = () => {
     const fetchBeekeepers = async () => {
       try {
         const response = await fetch('/api/beekeepers');
-        if (!response.ok) throw new Error('Fehler beim Laden');
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
         const data = await response.json();
-        setBeekeepers(data);
+        
+        // Validiere dass data ein Array ist
+        if (Array.isArray(data)) {
+          setBeekeepers(data);
+        } else {
+          console.warn('API returned invalid data format');
+          setBeekeepers([]);
+        }
       } catch (error) {
-        console.error('Fehler:', error);
-        // Mock Data für Testing
-        setBeekeepers([]);
+        console.error('Fehler beim Laden der Imker:', error);
+        setBeekeepers([]); // Leerer Array als Fallback
       } finally {
         setLoading(false);
       }
@@ -215,7 +232,7 @@ export const MapView = () => {
         })}
       </MapContainer>
 
-      {/* Standort-Button - Groß und sichtbar */}
+      {/* Standort-Button */}
       <button
         onClick={requestLocation}
         disabled={requestingLocation}
@@ -249,7 +266,7 @@ export const MapView = () => {
           <h3 className="font-bold text-amber-800">Honeypot</h3>
         </div>
         <p className="text-sm text-gray-600">
-          {beekeepers.length} Imker registriert
+          {beekeepers.length} Imker {beekeepers.length === 0 ? '(Mock-Daten)' : 'registriert'}
         </p>
         {userLocation && (
           <p className="text-xs text-blue-600 mt-1 font-semibold">
