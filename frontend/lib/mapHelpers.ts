@@ -38,8 +38,11 @@ export const calculateOptimalBounds = (
   const paddedBounds = bounds.pad(0.15);
   const zoom = calculateBoundsZoom(paddedBounds);
   
+  // FIX: Explizit lat/lng extrahieren statt zu casten
+  const centerLatLng = paddedBounds.getCenter();
+  
   return {
-    center: paddedBounds.getCenter() as [number, number],
+    center: [centerLatLng.lat, centerLatLng.lng],
     zoom: Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom))
   };
 };
