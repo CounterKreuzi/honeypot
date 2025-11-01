@@ -11,8 +11,14 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
-app.use(cors());
+// CORS Configuration
+const corsOptions = {
+  origin: process.env.CORS_ORIGIN || '*',
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // Health Check
@@ -21,7 +27,8 @@ app.get('/health', (req, res) => {
     status: 'ok', 
     message: 'Honeypot API is running',
     timestamp: new Date().toISOString(),
-    database: AppDataSource.isInitialized ? 'connected' : 'disconnected'
+    database: AppDataSource.isInitialized ? 'connected' : 'disconnected',
+    environment: process.env.NODE_ENV
   });
 });
 
@@ -43,9 +50,8 @@ AppDataSource.initialize()
     console.log('✅ Database connected successfully');
     
     app.listen(PORT, () => {
-      console.log(`🚀 Server running on http://localhost:${PORT}`);
-      console.log(`📝 Auth API: http://localhost:${PORT}/api/auth`);
-      console.log(`🍯 Beekeeper API: http://localhost:${PORT}/api/beekeepers`);
+      console.log(`🚀 Server running on port ${PORT}`);
+      console.log(`📝 Environment: ${process.env.NODE_ENV}`);
     });
   })
   .catch((error) => {
