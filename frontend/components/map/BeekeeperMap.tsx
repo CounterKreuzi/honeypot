@@ -21,8 +21,8 @@ interface BeekeeperMapProps {
 
 export default function BeekeeperMap({
   beekeepers,
-  center = [48.2082, 16.3738],
-  zoom = 13,
+  center = [47.5, 13.5],    // ← Ändere hier auf Österreich-Mitte
+  zoom = 7,                  // ← Ändere hier auf Zoom 7
   onMarkerClick,
 }: BeekeeperMapProps) {
   const mapRef = useRef<L.Map | null>(null);
