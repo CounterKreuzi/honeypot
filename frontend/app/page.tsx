@@ -210,41 +210,39 @@ export default function Home() {
                   </p>
                 </div>
 
-                {/* Split View - NEW LAYOUT: Map oben, Karten unten */}
+                {/* Split View - NEW: Karte sticky oben, Karten direkt scrollbar */}
                 {viewMode === 'split' && (
                   <div className="space-y-4">
-                    {/* Map Section - 50vh */}
-                    <div className="w-full h-[50vh] bg-white rounded-lg shadow-md overflow-hidden">
+                    {/* Sticky Map Section - 50vh */}
+                    <div className="sticky top-0 z-10 w-full h-[50vh] bg-white rounded-lg shadow-md overflow-hidden">
                       <BeekeeperMap
                         beekeepers={filteredBeekeepers}
                         onMarkerClick={handleMarkerClick}
                       />
                     </div>
 
-                    {/* Beekeeper Cards Section - Scrollable */}
-                    <div className="space-y-4 max-h-[calc(100vh-50vh-250px)] overflow-y-auto pr-2">
-                      {filteredBeekeepers.length === 0 ? (
-                        <div className="text-center py-12 bg-white rounded-lg shadow">
-                          <span className="text-6xl mb-4 block">🔍</span>
-                          <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                            Keine Imker gefunden
-                          </h3>
-                          <p className="text-gray-600">
-                            Versuche die Filter anzupassen oder erweitere den Suchradius
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                          {filteredBeekeepers.map((beekeeper) => (
-                            <BeekeeperCard
-                              key={beekeeper.id}
-                              beekeeper={beekeeper}
-                              onClick={() => handleCardClick(beekeeper)}
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                    {/* Beekeeper Cards Section - Directly scrollable on main page */}
+                    {filteredBeekeepers.length === 0 ? (
+                      <div className="text-center py-12 bg-white rounded-lg shadow">
+                        <span className="text-6xl mb-4 block">🔍</span>
+                        <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                          Keine Imker gefunden
+                        </h3>
+                        <p className="text-gray-600">
+                          Versuche die Filter anzupassen oder erweitere den Suchradius
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 pb-8">
+                        {filteredBeekeepers.map((beekeeper) => (
+                          <BeekeeperCard
+                            key={beekeeper.id}
+                            beekeeper={beekeeper}
+                            onClick={() => handleCardClick(beekeeper)}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 
