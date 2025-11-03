@@ -6,6 +6,7 @@ export interface User {
 }
 
 export interface HoneyType {
+  pricePerJar: any;
   id: string;
   name: string;
   description?: string;

@@ -5,33 +5,48 @@ import dynamic from 'next/dynamic';
 import { useBeekeeperStore } from '@/lib/store/beekeeperStore';
 import { beekeepersApi } from '@/lib/api/beekeepers';
 import { Beekeeper } from '@/types/api';
-import FilterSidebar, { FilterState } from '@/components/filters/FilterSidebar';
+import FilterSidebar from '@/components/filters/FilterSidebar';
 import BeekeeperCard from '@/components/cards/BeekeeperCard';
-import { MapIcon, ListIcon, Loader2 } from 'lucide-react';
+import { Loader2, List as ListIcon, Map as MapIcon } from 'lucide-react';
 
+// Dynamic import to avoid SSR issues with Leaflet
 const BeekeeperMap = dynamic(() => import('@/components/map/BeekeeperMap'), {
   ssr: false,
   loading: () => (
     <div className="w-full h-full flex items-center justify-center bg-gray-100 rounded-lg">
-      <Loader2 className="w-8 h-8 animate-spin text-amber-600" />
+      <p className="text-gray-600">Karte wird geladen...</p>
     </div>
   ),
 });
 
-type ViewMode = 'list' | 'map' | 'split';
+interface Filters {
+  honeyTypes: string[];
+  priceRange: [number, number];
+  maxDistance: number;
+  hasWebsite: boolean;
+  openNow: boolean;
+}
 
 export default function Home() {
-  const { beekeepers, setBeekeepers, setSelectedBeekeeper, loading, setLoading, setError } =
-    useBeekeeperStore();
-  const [filters, setFilters] = useState<FilterState>({
-    honeyTypes: [],
-    priceRange: [0, 50],
-    maxDistance: 50,
-    openNow: false,
-    hasWebsite: false,
-  });
-  const [viewMode, setViewMode] = useState<ViewMode>('split');
+  const { 
+    beekeepers, 
+    setBeekeepers, 
+    selectedBeekeeper,
+    setSelectedBeekeeper, 
+    loading, 
+    setLoading, 
+    setError 
+  } = useBeekeeperStore();
+  
   const [selectedBeekeeperDetail, setSelectedBeekeeperDetail] = useState<Beekeeper | null>(null);
+  const [viewMode, setViewMode] = useState<'list' | 'split' | 'map'>('split');
+  const [filters, setFilters] = useState<Filters>({
+    honeyTypes: [],
+    priceRange: [0, 42],
+    maxDistance: 50,
+    hasWebsite: false,
+    openNow: false,
+  });
 
   useEffect(() => {
     loadBeekeepers();
@@ -51,32 +66,28 @@ export default function Home() {
     }
   };
 
-  // Get all unique honey types for filter
+  // Get unique honey types for filters
   const availableHoneyTypes = useMemo(() => {
     const types = new Set<string>();
     beekeepers.forEach((beekeeper) => {
-      beekeeper.honeyTypes.forEach((honey) => {
-        types.add(honey.name);
-      });
+      beekeeper.honeyTypes.forEach((type) => types.add(type.name));
     });
-    return Array.from(types).sort();
+    return Array.from(types);
   }, [beekeepers]);
 
-  // Filter beekeepers based on active filters
+  // Filter beekeepers based on current filters
   const filteredBeekeepers = useMemo(() => {
     return beekeepers.filter((beekeeper) => {
-      // Honey types filter
+      // Honey type filter
       if (filters.honeyTypes.length > 0) {
-        const hasMatchingType = beekeeper.honeyTypes.some((honey) =>
-          filters.honeyTypes.includes(honey.name)
+        const hasMatchingType = beekeeper.honeyTypes.some((type) =>
+          filters.honeyTypes.includes(type.name)
         );
         if (!hasMatchingType) return false;
       }
 
       // Price filter
-      const prices = beekeeper.honeyTypes
-        .filter((h) => h.price)
-        .map((h) => parseFloat(h.price!));
+      const prices = beekeeper.honeyTypes.map((type) => type.pricePerJar);
       if (prices.length > 0) {
         const minPrice = Math.min(...prices);
         if (minPrice > filters.priceRange[1]) return false;
@@ -92,7 +103,7 @@ export default function Home() {
         return false;
       }
 
-      // Open now filter (simplified - enhance with actual time checking)
+      // Open now filter
       if (filters.openNow && !beekeeper.openingHours) {
         return false;
       }
@@ -108,6 +119,7 @@ export default function Home() {
 
   const handleCardClick = (beekeeper: Beekeeper) => {
     setSelectedBeekeeperDetail(beekeeper);
+    setSelectedBeekeeper(beekeeper);
     // Scroll to top on mobile
     if (window.innerWidth < 1024) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -167,7 +179,7 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Main Content - Booking.com Style Layout */}
+      {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Left Sidebar - Filters */}
@@ -198,19 +210,20 @@ export default function Home() {
                   </p>
                 </div>
 
-                {/* Split View */}
+                {/* Split View - NEW LAYOUT: Map oben, Karten unten */}
                 {viewMode === 'split' && (
-                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                    {/* Results List */}
-                    <div className="space-y-4 max-h-[calc(100vh-250px)] overflow-y-auto pr-2">
-                      {filteredBeekeepers.map((beekeeper) => (
-                        <BeekeeperCard
-                          key={beekeeper.id}
-                          beekeeper={beekeeper}
-                          onClick={() => handleCardClick(beekeeper)}
-                        />
-                      ))}
-                      {filteredBeekeepers.length === 0 && (
+                  <div className="space-y-4">
+                    {/* Map Section - 50vh */}
+                    <div className="w-full h-[50vh] bg-white rounded-lg shadow-md overflow-hidden">
+                      <BeekeeperMap
+                        beekeepers={filteredBeekeepers}
+                        onMarkerClick={handleMarkerClick}
+                      />
+                    </div>
+
+                    {/* Beekeeper Cards Section - Scrollable */}
+                    <div className="space-y-4 max-h-[calc(100vh-50vh-250px)] overflow-y-auto pr-2">
+                      {filteredBeekeepers.length === 0 ? (
                         <div className="text-center py-12 bg-white rounded-lg shadow">
                           <span className="text-6xl mb-4 block">🔍</span>
                           <h3 className="text-xl font-semibold text-gray-900 mb-2">
@@ -220,17 +233,17 @@ export default function Home() {
                             Versuche die Filter anzupassen oder erweitere den Suchradius
                           </p>
                         </div>
+                      ) : (
+                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                          {filteredBeekeepers.map((beekeeper) => (
+                            <BeekeeperCard
+                              key={beekeeper.id}
+                              beekeeper={beekeeper}
+                              onClick={() => handleCardClick(beekeeper)}
+                            />
+                          ))}
+                        </div>
                       )}
-                    </div>
-
-                    {/* Map */}
-                    <div className="hidden xl:block sticky top-6 h-[calc(100vh-200px)]">
-                      <div className="bg-white rounded-lg shadow-md overflow-hidden h-full">
-                        <BeekeeperMap
-                          beekeepers={filteredBeekeepers}
-                          onMarkerClick={handleMarkerClick}
-                        />
-                      </div>
                     </div>
                   </div>
                 )}
@@ -238,13 +251,25 @@ export default function Home() {
                 {/* List View */}
                 {viewMode === 'list' && (
                   <div className="space-y-4">
-                    {filteredBeekeepers.map((beekeeper) => (
-                      <BeekeeperCard
-                        key={beekeeper.id}
-                        beekeeper={beekeeper}
-                        onClick={() => handleCardClick(beekeeper)}
-                      />
-                    ))}
+                    {filteredBeekeepers.length === 0 ? (
+                      <div className="text-center py-12 bg-white rounded-lg shadow">
+                        <span className="text-6xl mb-4 block">🔍</span>
+                        <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                          Keine Imker gefunden
+                        </h3>
+                        <p className="text-gray-600">
+                          Versuche die Filter anzupassen oder erweitere den Suchradius
+                        </p>
+                      </div>
+                    ) : (
+                      filteredBeekeepers.map((beekeeper) => (
+                        <BeekeeperCard
+                          key={beekeeper.id}
+                          beekeeper={beekeeper}
+                          onClick={() => handleCardClick(beekeeper)}
+                        />
+                      ))
+                    )}
                   </div>
                 )}
 
