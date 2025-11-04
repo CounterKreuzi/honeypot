@@ -28,18 +28,19 @@ interface Filters {
 }
 
 export default function Home() {
-  const { 
-    beekeepers, 
-    setBeekeepers, 
+  const {
+    beekeepers,
+    setBeekeepers,
     selectedBeekeeper,
-    setSelectedBeekeeper, 
-    loading, 
-    setLoading, 
-    setError 
+    setSelectedBeekeeper,
+    loading,
+    setLoading,
+    setError
   } = useBeekeeperStore();
-  
+
   const [selectedBeekeeperDetail, setSelectedBeekeeperDetail] = useState<Beekeeper | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'split' | 'map'>('split');
+  const [mapHeight, setMapHeight] = useState(50); // vh units: starts at 50vh, shrinks to 25vh
   const [filters, setFilters] = useState<Filters>({
     honeyTypes: [],
     priceRange: [0, 42],
@@ -51,6 +52,30 @@ export default function Home() {
   useEffect(() => {
     loadBeekeepers();
   }, []);
+
+  // Reset map height when changing view mode
+  useEffect(() => {
+    setMapHeight(50); // Reset to 50vh when switching to split view
+  }, [viewMode]);
+
+  // Dynamic map height based on scroll
+  useEffect(() => {
+    if (viewMode !== 'split') return;
+
+    const handleScroll = () => {
+      const scrollY = window.scrollY;
+      const maxScroll = 300; // Pixels to scroll before reaching minimum height
+
+      // Calculate new height: 50vh -> 25vh based on scroll position
+      const scrollProgress = Math.min(scrollY / maxScroll, 1); // 0 to 1
+      const newHeight = 50 - (scrollProgress * 25); // 50vh to 25vh
+
+      setMapHeight(Math.max(newHeight, 25)); // Minimum 25vh
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [viewMode]);
 
   const loadBeekeepers = async () => {
     try {
@@ -210,18 +235,21 @@ export default function Home() {
                   </p>
                 </div>
 
-                {/* Split View - NEW: Karte sticky oben, Karten direkt scrollbar */}
+                {/* Split View - Dynamic shrinking map on scroll */}
                 {viewMode === 'split' && (
                   <div className="space-y-4">
-                    {/* Sticky Map Section - 50vh */}
-                    <div className="sticky top-0 z-10 w-full h-[50vh] bg-white rounded-lg shadow-md overflow-hidden">
+                    {/* Fixed Map Section - Dynamic height (50vh -> 25vh on scroll) */}
+                    <div
+                      className="sticky top-0 z-10 w-full bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 ease-out"
+                      style={{ height: `${mapHeight}vh` }}
+                    >
                       <BeekeeperMap
                         beekeepers={filteredBeekeepers}
                         onMarkerClick={handleMarkerClick}
                       />
                     </div>
 
-                    {/* Beekeeper Cards Section - Directly scrollable on main page */}
+                    {/* Beekeeper Cards Section */}
                     {filteredBeekeepers.length === 0 ? (
                       <div className="text-center py-12 bg-white rounded-lg shadow">
                         <span className="text-6xl mb-4 block">🔍</span>
