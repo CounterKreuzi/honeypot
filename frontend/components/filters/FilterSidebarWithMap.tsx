@@ -98,10 +98,12 @@ export default function FilterSidebar({
       {/* Kleine Kartenvorschau */}
       <div className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
         <div className="relative h-48 group cursor-pointer" onClick={onMapExpand}>
+          {/* WICHTIG: Eindeutige mapId für Sidebar-Preview */}
           <BeekeeperMap
             beekeepers={beekeepers}
             onMarkerClick={onMarkerClick}
             zoom={6}
+            mapId="map-sidebar-preview"  {/* Eindeutige ID! */}
           />
           {/* Overlay mit Vergrößerungs-Button */}
           <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300 flex items-center justify-center">
