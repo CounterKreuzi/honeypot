@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { X, MapPin, Phone, Globe, Clock, Mail, Euro, Navigation } from 'lucide-react';
+import { X, MapPin, Phone, Globe, Clock, Euro, Navigation } from 'lucide-react';
 import { Beekeeper } from '@/types/api';
 
 interface BeekeeperDetailModalProps {
@@ -145,22 +145,6 @@ export default function BeekeeperDetailModal({
                     className="text-gray-600 hover:text-amber-600 transition-colors"
                   >
                     {beekeeper.phone}
-                  </a>
-                </div>
-              </div>
-            )}
-
-            {/* Email */}
-            {beekeeper.email && (
-              <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-lg">
-                <Mail className="w-5 h-5 text-amber-600 mt-1 flex-shrink-0" />
-                <div>
-                  <h3 className="font-semibold text-gray-900 mb-1">E-Mail</h3>
-                  <a
-                    href={`mailto:${beekeeper.email}`}
-                    className="text-gray-600 hover:text-amber-600 transition-colors break-all"
-                  >
-                    {beekeeper.email}
                   </a>
                 </div>
               </div>
