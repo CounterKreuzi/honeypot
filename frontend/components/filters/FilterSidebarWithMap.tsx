@@ -32,9 +32,9 @@ export interface FilterState {
   hasWebsite: boolean;
 }
 
-// ✅ FIX: Bessere Werte für ganz Österreich sichtbar
-const DEFAULT_CENTER: [number, number] = [47.5, 13.0]; // Leicht nach Westen verschoben
-const DEFAULT_ZOOM = 6; // Weiter raus gezoomt für komplette Österreich-Sicht
+// ✅ Bessere Werte für ganz Österreich sichtbar
+const DEFAULT_CENTER: [number, number] = [47.5, 13.0];
+const DEFAULT_ZOOM = 6;
 const LOCATION_ZOOM = 10;
 
 export default function FilterSidebar({
@@ -63,6 +63,80 @@ export default function FilterSidebar({
 
   const [mapCenter, setMapCenter] = useState<[number, number]>(DEFAULT_CENTER);
   const [mapZoom, setMapZoom] = useState(DEFAULT_ZOOM);
+
+  // ✅ VERBESSERTE Drag Detection
+  const dragStateRef = useRef({
+    isDragging: false,
+    startX: 0,
+    startY: 0,
+    hasMoved: false,
+  });
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    // Ignoriere Klicks auf Buttons und Links
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('a') || target.closest('.leaflet-marker-icon')) {
+      return;
+    }
+
+    dragStateRef.current = {
+      isDragging: true,
+      startX: e.clientX,
+      startY: e.clientY,
+      hasMoved: false,
+    };
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!dragStateRef.current.isDragging) return;
+
+    const dx = Math.abs(e.clientX - dragStateRef.current.startX);
+    const dy = Math.abs(e.clientY - dragStateRef.current.startY);
+
+    // Wenn Bewegung > 5px, dann ist es ein Drag
+    if (dx > 5 || dy > 5) {
+      dragStateRef.current.hasMoved = true;
+    }
+  };
+
+  const handleMouseUp = (e: React.MouseEvent) => {
+    if (!dragStateRef.current.isDragging) return;
+
+    const target = e.target as HTMLElement;
+    
+    // Ignoriere Klicks auf Markers, Buttons, Popups
+    if (
+      target.closest('.leaflet-marker-icon') ||
+      target.closest('.leaflet-popup') ||
+      target.closest('button') ||
+      target.closest('a')
+    ) {
+      dragStateRef.current.isDragging = false;
+      return;
+    }
+
+    // Nur Modal öffnen wenn es KEIN Drag war
+    if (!dragStateRef.current.hasMoved) {
+      onMapExpand();
+    }
+
+    dragStateRef.current = {
+      isDragging: false,
+      startX: 0,
+      startY: 0,
+      hasMoved: false,
+    };
+  };
+
+  const handleMouseLeave = () => {
+    // Reset bei Mouse Leave
+    dragStateRef.current = {
+      isDragging: false,
+      startX: 0,
+      startY: 0,
+      hasMoved: false,
+    };
+  };
 
   const toggleSection = (section: keyof typeof expandedSections) => {
     setExpandedSections((prev) => ({
@@ -118,35 +192,49 @@ export default function FilterSidebar({
     <div className="space-y-4">
       {/* Kleine Kartenvorschau */}
       <div className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
-        {/* ✅ FIX: Wrapper mit relativer Position für Overlay */}
-        <div className="relative h-48">
-          {/* Karte - OHNE Drag Detection, damit Marker klickbar sind */}
-          <div className="absolute inset-0">
-            <BeekeeperMap
-              beekeepers={beekeepers}
-              onMarkerClick={onMarkerClick}
-              center={mapCenter}
-              zoom={mapZoom}
-              mapId="map-sidebar-preview"
-            />
-          </div>
+        {/* ✅ NEUE LÖSUNG: Wrapper mit Mouse Events */}
+        <div 
+          className="relative h-48 group cursor-pointer"
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseLeave}
+        >
+          {/* Karte - komplett interaktiv */}
+          <BeekeeperMap
+            beekeepers={beekeepers}
+            onMarkerClick={onMarkerClick}
+            center={mapCenter}
+            zoom={mapZoom}
+            mapId="map-sidebar-preview"
+          />
           
-          {/* ✅ FIX: Hover-Overlay nur für visuelles Feedback und Vergrößern-Button */}
-          {/* Pointer-Events nur auf dem Button, nicht auf dem Overlay */}
-          <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-10 transition-opacity duration-300 flex items-center justify-center pointer-events-none">
-            <button
-              onClick={onMapExpand}
-              className="opacity-0 hover:opacity-100 bg-white p-3 rounded-full shadow-lg transition-all duration-300 hover:scale-110 pointer-events-auto"
-              title="Karte vergrößern"
-            >
-              <Maximize2 className="w-5 h-5 text-amber-600" />
-            </button>
-          </div>
+          {/* ✅ Hover Overlay nur für visuelles Feedback */}
+          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-5 transition-opacity duration-300 pointer-events-none" />
           
-          {/* ✅ NEU: Info-Badge oben links */}
-          <div className="absolute top-2 left-2 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full shadow-md z-10 pointer-events-none">
+          {/* ✅ Info Badge */}
+          <div className="absolute top-2 left-2 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full shadow-md pointer-events-none">
             <p className="text-xs font-medium text-gray-700">
               {beekeepers.length} {beekeepers.length === 1 ? 'Imker' : 'Imker'}
+            </p>
+          </div>
+
+          {/* ✅ Maximize Button - rechts oben */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onMapExpand();
+            }}
+            className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 bg-white p-2 rounded-lg shadow-lg transition-all duration-300 hover:scale-110 z-10"
+            title="Karte vergrößern"
+          >
+            <Maximize2 className="w-4 h-4 text-amber-600" />
+          </button>
+
+          {/* ✅ Hinweis zum Klicken */}
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+            <p className="text-xs bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full shadow-md text-gray-700">
+              Klick zum Vergrößern
             </p>
           </div>
         </div>
