@@ -223,14 +223,11 @@ export default function Home() {
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Left Sidebar - Map Preview + Filters */}
           <aside className={`lg:w-80 flex-shrink-0 ${isMobileFilterOpen ? 'block' : 'hidden lg:block'}`}>
-            <FilterSidebarWithMap
-              onFilterChange={setFilters}
-              availableHoneyTypes={availableHoneyTypes}
-              totalResults={filteredBeekeepers.length}
-              beekeepers={filteredBeekeepers}
-              onMapExpand={() => setIsMapModalOpen(true)}
-              onMarkerClick={handleMarkerClick}
-            />
+            <FilterSidebar
+  onFilterChange={setFilters}
+  availableHoneyTypes={availableHoneyTypes}
+  totalResults={filteredBeekeepers.length}
+/>
           </aside>
 
           {/* Right Content Area - Beekeeper Cards */}
