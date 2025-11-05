@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { X, ChevronDown, ChevronUp, MapPin, Euro, Clock, Maximize2 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { Beekeeper } from '@/types/api';
@@ -47,13 +47,47 @@ export default function FilterSidebar({
     hasWebsite: false,
   });
 
-  // ✅ ÄNDERUNG 1: Alle Filter standardmäßig aufgeklappt
   const [expandedSections, setExpandedSections] = useState({
     honeyTypes: true,
     price: true,
     distance: true,
-    availability: true, // ← Geändert von false auf true
+    availability: true,
   });
+
+  // ✅ NEU: Drag Detection
+  const mouseDownPos = useRef<{ x: number; y: number } | null>(null);
+  const isDragging = useRef(false);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    mouseDownPos.current = { x: e.clientX, y: e.clientY };
+    isDragging.current = false;
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (mouseDownPos.current) {
+      const dx = Math.abs(e.clientX - mouseDownPos.current.x);
+      const dy = Math.abs(e.clientY - mouseDownPos.current.y);
+      
+      // Wenn Bewegung > 5px, dann ist es ein Drag
+      if (dx > 5 || dy > 5) {
+        isDragging.current = true;
+      }
+    }
+  };
+
+  const handleMouseUp = (e: React.MouseEvent) => {
+    // Nur Modal öffnen wenn es KEIN Drag war
+    if (!isDragging.current && mouseDownPos.current) {
+      // Prüfe ob der Klick nicht auf dem Maximize-Button war
+      const target = e.target as HTMLElement;
+      if (!target.closest('button')) {
+        onMapExpand();
+      }
+    }
+    
+    mouseDownPos.current = null;
+    isDragging.current = false;
+  };
 
   const toggleSection = (section: keyof typeof expandedSections) => {
     setExpandedSections((prev) => ({
@@ -96,9 +130,15 @@ export default function FilterSidebar({
 
   return (
     <div className="space-y-4">
-      {/* Kartenvorschau - BLEIBT ERHALTEN */}
+      {/* Kleine Kartenvorschau */}
       <div className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
-        <div className="relative h-48 group cursor-pointer" onClick={onMapExpand}>
+        <div 
+          className="relative h-48 group"
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          style={{ cursor: isDragging.current ? 'grabbing' : 'grab' }}
+        >
           <BeekeeperMap
             beekeepers={beekeepers}
             onMarkerClick={onMarkerClick}
@@ -106,17 +146,19 @@ export default function FilterSidebar({
             mapId="map-sidebar-preview"
           />
           {/* Overlay mit Vergrößerungs-Button */}
-          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300 flex items-center justify-center pointer-events-none">
             <button
-              onClick={onMapExpand}
-              className="opacity-0 group-hover:opacity-100 bg-white p-3 rounded-full shadow-lg transition-all duration-300 hover:scale-110"
+              onClick={(e) => {
+                e.stopPropagation();
+                onMapExpand();
+              }}
+              className="opacity-0 group-hover:opacity-100 bg-white p-3 rounded-full shadow-lg transition-all duration-300 hover:scale-110 pointer-events-auto"
               title="Karte vergrößern"
             >
               <Maximize2 className="w-5 h-5 text-amber-600" />
             </button>
           </div>
         </div>
-        {/* ❌ ÄNDERUNG 2: Texte unter der Karte entfernt */}
       </div>
 
       {/* Filter Bereich */}
@@ -134,10 +176,8 @@ export default function FilterSidebar({
               </button>
             )}
           </div>
-          {/* ❌ ÄNDERUNG 3: "X Imker gefunden" Text entfernt */}
         </div>
 
-        {/* ✅ ÄNDERUNG 4: overflow-y-auto und max-h entfernt */}
         <div>
           {/* Honigsorten Filter */}
           <div className="border-b border-gray-200">
