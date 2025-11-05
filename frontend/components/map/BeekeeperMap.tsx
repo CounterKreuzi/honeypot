@@ -17,7 +17,7 @@ interface BeekeeperMapProps {
   center?: [number, number];
   zoom?: number;
   onMarkerClick?: (beekeeper: Beekeeper) => void;
-  mapId?: string; // Neue Prop für eindeutige Container-ID
+  mapId?: string;
 }
 
 export default function BeekeeperMap({
@@ -25,7 +25,7 @@ export default function BeekeeperMap({
   center = [47.5, 13.5],
   zoom = 7,
   onMarkerClick,
-  mapId = 'map', // Default ID
+  mapId = 'map',
 }: BeekeeperMapProps) {
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<L.Marker[]>([]);
@@ -43,7 +43,11 @@ export default function BeekeeperMap({
 
     // Initialisiere neue Karte
     try {
-      mapRef.current = L.map(containerRef.current).setView(center, zoom);
+      // ✅ FIX 1: Verwende setView ohne Animation
+      mapRef.current = L.map(containerRef.current, {
+        zoomAnimation: false, // Deaktiviert Zoom-Animation
+        fadeAnimation: false, // Deaktiviert Fade-Animation
+      }).setView(center, zoom);
 
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors',
@@ -83,10 +87,13 @@ export default function BeekeeperMap({
         markersRef.current.push(marker);
       });
 
-      // Fit bounds wenn Marker vorhanden
-      if (markersRef.current.length > 0) {
+      // ✅ FIX 2: fitBounds ohne Animation oder nur für große Karte
+      if (markersRef.current.length > 0 && mapId === 'map-modal') {
+        // Nur in der großen Modal-Karte automatisch zoomen
         const group = L.featureGroup(markersRef.current);
-        mapRef.current.fitBounds(group.getBounds().pad(0.1));
+        mapRef.current.fitBounds(group.getBounds().pad(0.1), {
+          animate: false, // Keine Animation
+        });
       }
     } catch (error) {
       console.error('Error initializing map:', error);
