@@ -86,11 +86,13 @@ export default function MapModal({
 
         {/* Map */}
         <div className="w-full h-full pt-16">
+          {/* WICHTIG: Eindeutige mapId für Modal */}
           <BeekeeperMap
             beekeepers={beekeepers}
             onMarkerClick={onMarkerClick}
             center={center}
             zoom={zoom}
+            mapId="map-modal"  {/* Eindeutige ID! */}
           />
         </div>
       </div>
