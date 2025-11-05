@@ -14,43 +14,6 @@ const beekeeperRepository = AppDataSource.getRepository(Beekeeper);
 const honeyTypeRepository = AppDataSource.getRepository(HoneyType);
 
 // ============================================================================
-// 🔧 Hilfs-Typen & Utils
-// ============================================================================
-
-/**
- * Einheitliche Rückgabeform für Endpunkte:
- * - `distance` ist optional und wird nur gesetzt, wenn Koordinaten übergeben wurden.
- */
-type BeekeeperDTO = Beekeeper & { distance?: number };
-
-function toRadians(deg: number): number {
-  return (deg * Math.PI) / 180;
-}
-
-/**
- * Haversine-Distanz in km.
- */
-function haversineKm(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number
-): number {
-  const R = 6371; // km
-  const φ1 = toRadians(lat1);
-  const φ2 = toRadians(lat2);
-  const Δφ = toRadians(lat2 - lat1);
-  const Δλ = toRadians(lon2 - lon1);
-
-  const a =
-    Math.sin(Δφ / 2) ** 2 +
-    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
-
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
-
-// ============================================================================
 // 🆕 GEOCODING HELPER
 // ============================================================================
 
@@ -74,9 +37,7 @@ async function geocodeAddress(
     console.log('🔍 Geocoding address:', searchQuery);
 
     const response = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-        searchQuery
-      )}&limit=1&addressdetails=1`,
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=1&addressdetails=1`,
       {
         headers: {
           'User-Agent': 'Honeypot-Imker-Platform/1.0',
@@ -154,9 +115,7 @@ export const updateProfile = async (
         beekeeper.longitude === 0;
 
       if (addressChanged || noCoordinates) {
-        console.log(
-          '🗺️ Address changed or missing coordinates - starting geocoding...'
-        );
+        console.log('🗺️ Address changed or missing coordinates - starting geocoding...');
 
         const geocodeResult = await geocodeAddress(
           value.address,
@@ -169,9 +128,7 @@ export const updateProfile = async (
           value.longitude = geocodeResult.longitude;
           console.log('✅ Coordinates updated:', geocodeResult);
         } else {
-          console.warn(
-            '⚠️ Geocoding failed - keeping existing coordinates or using fallback'
-          );
+          console.warn('⚠️ Geocoding failed - keeping existing coordinates or using fallback');
 
           if (noCoordinates) {
             value.latitude = 48.2082;
@@ -484,20 +441,30 @@ export const searchNearby = async (
           return null;
         }
 
-        const distance = haversineKm(latitude, longitude, beekeeperLat, beekeeperLng);
+        const lat1 = latitude * (Math.PI / 180);
+        const lat2 = beekeeperLat * (Math.PI / 180);
+        const deltaLat = (beekeeperLat - latitude) * (Math.PI / 180);
+        const deltaLng = (beekeeperLng - longitude) * (Math.PI / 180);
 
-        const dto: BeekeeperDTO = {
+        const a =
+          Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
+          Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLng / 2) * Math.sin(deltaLng / 2);
+
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        const distance = 6371 * c;
+
+        return {
           ...beekeeper,
           distance: Math.round(distance * 100) / 100,
         };
-
-        return dto;
       })
       .filter(
-        (b): b is BeekeeperDTO =>
-          b !== null && typeof b.distance === 'number' && b.distance <= radius
+        (
+          beekeeper
+        ): beekeeper is Beekeeper & { distance: number } =>
+          beekeeper !== null && beekeeper.distance <= radius
       )
-      .sort((a, b) => (a.distance! - b.distance!));
+      .sort((a, b) => a.distance - b.distance);
 
     res.json({
       success: true,
@@ -578,17 +545,10 @@ export const advancedSearch = async (
 
     const beekeepers = await queryBuilder.getMany();
 
-    // WICHTIG: Typ hier auf DTO setzen, damit `distance` typisiert ist (optional).
-    let results: BeekeeperDTO[] = beekeepers;
-
-    // Falls Koordinaten gesetzt sind: Distanz berechnen & nach Radius filtern
+    let results = beekeepers;
     if (latitude && longitude) {
-      const lat = Number(latitude);
-      const lng = Number(longitude);
-      const rad = Number(radius);
-
       results = beekeepers
-        .map((beekeeper): BeekeeperDTO | null => {
+        .map((beekeeper) => {
           const beekeeperLat = parseFloat(beekeeper.latitude.toString());
           const beekeeperLng = parseFloat(beekeeper.longitude.toString());
 
@@ -596,7 +556,17 @@ export const advancedSearch = async (
             return null;
           }
 
-          const distance = haversineKm(lat, lng, beekeeperLat, beekeeperLng);
+          const lat1 = Number(latitude) * (Math.PI / 180);
+          const lat2 = beekeeperLat * (Math.PI / 180);
+          const deltaLat = (beekeeperLat - Number(latitude)) * (Math.PI / 180);
+          const deltaLng = (beekeeperLng - Number(longitude)) * (Math.PI / 180);
+
+          const a =
+            Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
+            Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLng / 2) * Math.sin(deltaLng / 2);
+
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+          const distance = 6371 * c;
 
           return {
             ...beekeeper,
@@ -604,22 +574,17 @@ export const advancedSearch = async (
           };
         })
         .filter(
-          (b): b is BeekeeperDTO =>
-            b !== null &&
-            typeof b.distance === 'number' &&
-            b.distance <= rad
+          (
+            beekeeper
+          ): beekeeper is Beekeeper & { distance: number } =>
+            beekeeper !== null && beekeeper.distance <= Number(radius)
         );
 
       if (sortBy === 'distance') {
-        results.sort(
-          (a, b) =>
-            (a.distance ?? Number.POSITIVE_INFINITY) -
-            (b.distance ?? Number.POSITIVE_INFINITY)
-        );
+        results.sort((a, b) => a.distance - b.distance);
       }
     }
 
-    // Zusätzliche Sortierungen (unabhängig von Distanz)
     if (sortBy === 'name') {
       results.sort((a, b) => a.name.localeCompare(b.name));
     }
