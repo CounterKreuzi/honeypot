@@ -21,7 +21,7 @@ interface FilterSidebarProps {
   beekeepers: Beekeeper[];
   onMapExpand: () => void;
   onMarkerClick?: (beekeeper: Beekeeper) => void;
-  userLocation?: [number, number]; // ✅ NEU: Optional user location for map centering
+  userLocation?: [number, number];
 }
 
 export interface FilterState {
@@ -32,6 +32,11 @@ export interface FilterState {
   hasWebsite: boolean;
 }
 
+// ✅ FIX: Konstanten für Default-Werte (Österreich-Zentrum)
+const DEFAULT_CENTER: [number, number] = [47.5, 13.5];
+const DEFAULT_ZOOM = 7;
+const LOCATION_ZOOM = 10;
+
 export default function FilterSidebar({
   onFilterChange,
   availableHoneyTypes,
@@ -39,7 +44,7 @@ export default function FilterSidebar({
   beekeepers,
   onMapExpand,
   onMarkerClick,
-  userLocation, // ✅ NEU
+  userLocation,
 }: FilterSidebarProps) {
   const [filters, setFilters] = useState<FilterState>({
     honeyTypes: [],
@@ -55,6 +60,10 @@ export default function FilterSidebar({
     distance: true,
     availability: true,
   });
+
+  // ✅ FIX: Initial State mit Österreich-Zentrum statt undefined
+  const [mapCenter, setMapCenter] = useState<[number, number]>(DEFAULT_CENTER);
+  const [mapZoom, setMapZoom] = useState(DEFAULT_ZOOM);
 
   // Drag Detection für Map-Preview
   const mouseDownPos = useRef<{ x: number; y: number } | null>(null);
@@ -127,17 +136,15 @@ export default function FilterSidebar({
     (filters.maxDistance < 50 ? 1 : 0) +
     (filters.priceRange[0] > 0 || filters.priceRange[1] < 50 ? 1 : 0);
 
-  // ✅ NEU: Automatisch Karte zentrieren wenn userLocation sich ändert
-  const [mapCenter, setMapCenter] = useState<[number, number]>([47.5, 13.5]);
-  const [mapZoom, setMapZoom] = useState(7);
-
+  // ✅ FIX: Update map center/zoom when userLocation changes
   useEffect(() => {
     if (userLocation) {
       setMapCenter(userLocation);
-      setMapZoom(10);
+      setMapZoom(LOCATION_ZOOM);
     } else {
-      setMapCenter([47.5, 13.5]);
-      setMapZoom(7);
+      // ✅ Reset zurück zu Österreich-Zentrum
+      setMapCenter(DEFAULT_CENTER);
+      setMapZoom(DEFAULT_ZOOM);
     }
   }, [userLocation]);
 
@@ -155,8 +162,8 @@ export default function FilterSidebar({
           <BeekeeperMap
             beekeepers={beekeepers}
             onMarkerClick={onMarkerClick}
-            center={mapCenter} // ✅ Verwende dynamisches Center
-            zoom={mapZoom}     // ✅ Verwende dynamisches Zoom
+            center={mapCenter}
+            zoom={mapZoom}
             mapId="map-sidebar-preview"
           />
           {/* Overlay mit Vergrößerungs-Button */}
@@ -321,7 +328,7 @@ export default function FilterSidebar({
                       {filters.maxDistance} km
                     </span>
                   </div>
-                  {/* ✅ NEU: Hinweis wenn kein Standort gesetzt */}
+                  {/* Hinweis wenn kein Standort gesetzt */}
                   {!userLocation && (
                     <p className="text-xs text-amber-600 mt-2 p-2 bg-amber-50 rounded">
                       💡 Gib einen Standort ein, um Imker in deiner Nähe zu finden

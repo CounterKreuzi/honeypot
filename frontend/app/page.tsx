@@ -53,6 +53,7 @@ export default function Home() {
   // Initial load - alle Imker ohne Location
   useEffect(() => {
     loadBeekeepers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadBeekeepers = async () => {
@@ -69,8 +70,16 @@ export default function Home() {
     }
   };
 
-  // ✅ NEUE FUNKTION: Handle location change from LocationSearch
-  const handleLocationChange = async (location: UserLocation) => {
+  // Handle location change OR reset from LocationSearch
+  const handleLocationChange = async (location: UserLocation | null) => {
+    // Wenn location null ist (Reset), lade alle Imker
+    if (location === null) {
+      console.log('🔄 Standort zurückgesetzt - lade alle Imker');
+      setUserLocation(null);
+      await loadBeekeepers();
+      return;
+    }
+
     console.log('🔍 Standort-Suche gestartet:', location);
     
     setUserLocation(location);
@@ -78,7 +87,6 @@ export default function Home() {
     try {
       setLoading(true);
       
-      // ✅ FIX: Verwende den aktuellen maxDistance Filter
       const data = await beekeepersApi.searchNearby(
         location.latitude,
         location.longitude,
@@ -90,7 +98,6 @@ export default function Home() {
       setBeekeepers(data);
       setError(null);
       
-      // Optional: Zeige kurze Erfolgsmeldung
       if (data.length === 0) {
         setError(`Keine Imker im Umkreis von ${filters.maxDistance}km gefunden. Versuche den Suchradius zu erhöhen.`);
       }
@@ -103,22 +110,22 @@ export default function Home() {
     }
   };
 
-  // ✅ NEUE FUNKTION: Re-search wenn maxDistance Filter geändert wird
+  // Re-search wenn maxDistance Filter geändert wird (nur wenn Location gesetzt ist)
   useEffect(() => {
     if (userLocation) {
-      // Debounce für bessere Performance
       const timeoutId = setTimeout(() => {
         handleLocationChange(userLocation);
       }, 300);
       
       return () => clearTimeout(timeoutId);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.maxDistance]);
 
   // Extract available honey types
   const availableHoneyTypes = useMemo(() => {
     const types = new Set<string>();
-    beekeepers.forEach((beekeeper) => {
+    beekeepers.forEach((beekeeper: Beekeeper) => {
       beekeeper.honeyTypes.forEach((honey) => {
         types.add(honey.name);
       });
@@ -128,7 +135,7 @@ export default function Home() {
 
   // Filter beekeepers based on current filters
   const filteredBeekeepers = useMemo(() => {
-    return beekeepers.filter((beekeeper) => {
+    return beekeepers.filter((beekeeper: Beekeeper) => {
       // Honey types filter
       if (
         filters.honeyTypes.length > 0 &&
@@ -150,7 +157,6 @@ export default function Home() {
       }
 
       // Distance filter wird bereits im Backend gemacht (searchNearby)
-      // Hier nur noch zusätzliche Client-side Validierung
       if (userLocation && beekeeper.distance !== undefined) {
         if (beekeeper.distance > filters.maxDistance) {
           return false;
@@ -162,13 +168,13 @@ export default function Home() {
         return false;
       }
 
-      // OpenNow filter (simplified - enhance with actual opening hours logic)
+      // OpenNow filter
       if (filters.openNow && !beekeeper.openingHours) {
         return false;
       }
 
       return true;
-    }).sort((a, b) => {
+    }).sort((a: Beekeeper, b: Beekeeper) => {
       // Sorting logic
       switch (sortBy) {
         case 'distance':
@@ -193,19 +199,16 @@ export default function Home() {
     });
   }, [beekeepers, filters, userLocation, sortBy]);
 
-  // Handle marker/pin click - öffnet Detail Modal
   const handleMarkerClick = (beekeeper: Beekeeper) => {
     setSelectedBeekeeper(beekeeper);
     setIsDetailModalOpen(true);
   };
 
-  // Handle card click - öffnet Detail Modal
   const handleCardClick = (beekeeper: Beekeeper) => {
     setSelectedBeekeeper(beekeeper);
     setIsDetailModalOpen(true);
   };
 
-  // Close detail modal
   const handleCloseDetailModal = () => {
     setIsDetailModalOpen(false);
     setTimeout(() => setSelectedBeekeeper(null), 300);
@@ -230,7 +233,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Location Search - ✅ WICHTIG: onLocationChange ist jetzt verbunden */}
+            {/* Location Search */}
             <LocationSearch
               onLocationChange={handleLocationChange}
               currentLocation={userLocation?.address}
@@ -292,9 +295,13 @@ export default function Home() {
                         {filteredBeekeepers.length}{' '}
                         {filteredBeekeepers.length === 1 ? 'Imker gefunden' : 'Imker gefunden'}
                       </h2>
-                      {userLocation && (
+                      {userLocation ? (
                         <p className="text-sm text-gray-600 mt-1">
                           📍 In der Nähe von {userLocation.address.split(',')[0]}
+                        </p>
+                      ) : (
+                        <p className="text-sm text-gray-600 mt-1">
+                          🌍 Alle Imker in Österreich
                         </p>
                       )}
                     </div>
@@ -304,7 +311,7 @@ export default function Home() {
                       <span className="text-sm text-gray-600">Sortieren:</span>
                       <select
                         value={sortBy}
-                        onChange={(e) => setSortBy(e.target.value as any)}
+                        onChange={(e) => setSortBy(e.target.value as 'distance' | 'name' | 'price')}
                         className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none"
                       >
                         <option value="distance">Entfernung</option>
@@ -341,7 +348,7 @@ export default function Home() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 gap-4 pb-8">
-                    {filteredBeekeepers.map((beekeeper) => (
+                    {filteredBeekeepers.map((beekeeper: Beekeeper) => (
                       <BeekeeperCard
                         key={beekeeper.id}
                         beekeeper={beekeeper}
