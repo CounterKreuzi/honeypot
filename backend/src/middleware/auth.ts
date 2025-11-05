@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { verifyToken } from '../utils/jwt';
+import jwt from 'jsonwebtoken';
 
 export interface AuthRequest extends Request {
   user?: {
@@ -9,44 +9,116 @@ export interface AuthRequest extends Request {
   };
 }
 
-export const authenticate = (
+export const authenticate = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction
-) => {
+): Promise<void> => {
   try {
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
-        message: 'Kein Token gefunden. Bitte einloggen.',
+        message: 'Kein Token vorhanden',
       });
+      return;
     }
 
-    const token = authHeader.substring(7); // Remove "Bearer "
-    const decoded = verifyToken(token);
+    const token = authHeader.split(' ')[1];
 
-    req.user = decoded;
+    if (!token) {
+      res.status(401).json({
+        success: false,
+        message: 'Kein Token vorhanden',
+      });
+      return;
+    }
+
+    const jwtSecret = process.env.JWT_SECRET || 'your-secret-key';
+
+    const decoded = jwt.verify(token, jwtSecret) as {
+      userId: string;
+      email: string;
+      role: string;
+    };
+
+    req.user = {
+      userId: decoded.userId,
+      email: decoded.email,
+      role: decoded.role,
+    };
+
     next();
   } catch (error) {
-    return res.status(401).json({
+    console.error('Authentication error:', error);
+
+    res.status(401).json({
       success: false,
       message: 'Ungültiger oder abgelaufener Token',
     });
   }
 };
 
-export const isAdmin = (
+export const optionalAuthenticate = async (
   req: AuthRequest,
-  res: Response,
+  _res: Response,
   next: NextFunction
-) => {
-  if (req.user?.role !== 'admin') {
-    return res.status(403).json({
-      success: false,
-      message: 'Zugriff verweigert. Admin-Rechte erforderlich.',
-    });
+): Promise<void> => {
+  try {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      next();
+      return;
+    }
+
+    const token = authHeader.split(' ')[1];
+
+    if (!token) {
+      next();
+      return;
+    }
+
+    const jwtSecret = process.env.JWT_SECRET || 'your-secret-key';
+
+    const decoded = jwt.verify(token, jwtSecret) as {
+      userId: string;
+      email: string;
+      role: string;
+    };
+
+    req.user = {
+      userId: decoded.userId,
+      email: decoded.email,
+      role: decoded.role,
+    };
+
+    next();
+  } catch (error) {
+    console.warn('Optional authentication failed:', error);
+    next();
   }
-  next();
+};
+
+export const requireRole = (...roles: string[]) => {
+  return (req: AuthRequest, res: Response, next: NextFunction): void => {
+    if (!req.user) {
+      res.status(401).json({
+        success: false,
+        message: 'Authentifizierung erforderlich',
+      });
+      return;
+    }
+
+    if (!roles.includes(req.user.role)) {
+      res.status(403).json({
+        success: false,
+        message: 'Keine Berechtigung für diese Aktion',
+      });
+      return;
+    }
+
+    next();
+  };
 };
