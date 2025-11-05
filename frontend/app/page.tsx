@@ -1,23 +1,14 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import dynamic from 'next/dynamic';
 import { useBeekeeperStore } from '@/lib/store/beekeeperStore';
 import { beekeepersApi } from '@/lib/api/beekeepers';
 import { Beekeeper } from '@/types/api';
-import FilterSidebar from '@/components/filters/FilterSidebar';
+import FilterSidebarWithMap from '@/components/filters/FilterSidebarWithMap';
 import BeekeeperCard from '@/components/cards/BeekeeperCard';
-import { Loader2, List as ListIcon, Map as MapIcon } from 'lucide-react';
-
-// Dynamic import to avoid SSR issues with Leaflet
-const BeekeeperMap = dynamic(() => import('@/components/map/BeekeeperMap'), {
-  ssr: false,
-  loading: () => (
-    <div className="w-full h-full flex items-center justify-center bg-gray-100 rounded-lg">
-      <p className="text-gray-600">Karte wird geladen...</p>
-    </div>
-  ),
-});
+import LocationSearch from '@/components/location/LocationSearch';
+import MapModal from '@/components/modals/MapModal';
+import { Loader2, SlidersHorizontal } from 'lucide-react';
 
 interface Filters {
   honeyTypes: string[];
@@ -25,6 +16,12 @@ interface Filters {
   maxDistance: number;
   hasWebsite: boolean;
   openNow: boolean;
+}
+
+interface UserLocation {
+  latitude: number;
+  longitude: number;
+  address: string;
 }
 
 export default function Home() {
@@ -38,44 +35,22 @@ export default function Home() {
     setError
   } = useBeekeeperStore();
 
-  const [selectedBeekeeperDetail, setSelectedBeekeeperDetail] = useState<Beekeeper | null>(null);
-  const [viewMode, setViewMode] = useState<'list' | 'split' | 'map'>('split');
-  const [mapHeight, setMapHeight] = useState(50); // vh units: starts at 50vh, shrinks to 25vh
   const [filters, setFilters] = useState<Filters>({
     honeyTypes: [],
-    priceRange: [0, 42],
+    priceRange: [0, 50],
     maxDistance: 50,
     hasWebsite: false,
     openNow: false,
   });
 
+  const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
+  const [isMapModalOpen, setIsMapModalOpen] = useState(false);
+  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
+  const [sortBy, setSortBy] = useState<'distance' | 'name' | 'price'>('distance');
+
   useEffect(() => {
     loadBeekeepers();
   }, []);
-
-  // Reset map height when changing view mode
-  useEffect(() => {
-    setMapHeight(50); // Reset to 50vh when switching to split view
-  }, [viewMode]);
-
-  // Dynamic map height based on scroll
-  useEffect(() => {
-    if (viewMode !== 'split') return;
-
-    const handleScroll = () => {
-      const scrollY = window.scrollY;
-      const maxScroll = 300; // Pixels to scroll before reaching minimum height
-
-      // Calculate new height: 50vh -> 25vh based on scroll position
-      const scrollProgress = Math.min(scrollY / maxScroll, 1); // 0 to 1
-      const newHeight = 50 - (scrollProgress * 25); // 50vh to 25vh
-
-      setMapHeight(Math.max(newHeight, 25)); // Minimum 25vh
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [viewMode]);
 
   const loadBeekeepers = async () => {
     try {
@@ -91,36 +66,65 @@ export default function Home() {
     }
   };
 
-  // Get unique honey types for filters
+  // Handle location change from LocationSearch
+  const handleLocationChange = async (location: UserLocation) => {
+    setUserLocation(location);
+    try {
+      setLoading(true);
+      const data = await beekeepersApi.searchNearby(
+        location.latitude,
+        location.longitude,
+        filters.maxDistance
+      );
+      setBeekeepers(data);
+      setError(null);
+    } catch (error) {
+      console.error('Failed to search beekeepers:', error);
+      setError('Fehler bei der Suche');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Extract available honey types
   const availableHoneyTypes = useMemo(() => {
     const types = new Set<string>();
     beekeepers.forEach((beekeeper) => {
-      beekeeper.honeyTypes.forEach((type) => types.add(type.name));
+      beekeeper.honeyTypes.forEach((honey) => {
+        types.add(honey.name);
+      });
     });
-    return Array.from(types);
+    return Array.from(types).sort();
   }, [beekeepers]);
 
   // Filter beekeepers based on current filters
   const filteredBeekeepers = useMemo(() => {
     return beekeepers.filter((beekeeper) => {
-      // Honey type filter
-      if (filters.honeyTypes.length > 0) {
-        const hasMatchingType = beekeeper.honeyTypes.some((type) =>
-          filters.honeyTypes.includes(type.name)
-        );
-        if (!hasMatchingType) return false;
+      // Honey types filter
+      if (
+        filters.honeyTypes.length > 0 &&
+        !beekeeper.honeyTypes.some((honey) => filters.honeyTypes.includes(honey.name))
+      ) {
+        return false;
       }
 
       // Price filter
-      const prices = beekeeper.honeyTypes.map((type) => type.pricePerJar);
+      const prices = beekeeper.honeyTypes
+        .map((h) => (h.price ? parseFloat(h.price) : null))
+        .filter((p): p is number => p !== null);
+
       if (prices.length > 0) {
         const minPrice = Math.min(...prices);
-        if (minPrice > filters.priceRange[1]) return false;
+        if (minPrice < filters.priceRange[0] || minPrice > filters.priceRange[1]) {
+          return false;
+        }
       }
 
-      // Distance filter
-      if (beekeeper.distance !== undefined) {
-        if (beekeeper.distance > filters.maxDistance) return false;
+      // Distance filter (if user location is set)
+      if (userLocation && beekeeper.distance !== undefined) {
+        if (beekeeper.distance > filters.maxDistance) {
+          return false;
+        }
       }
 
       // Website filter
@@ -128,76 +132,86 @@ export default function Home() {
         return false;
       }
 
-      // Open now filter
+      // OpenNow filter (simplified - enhance with actual opening hours logic)
       if (filters.openNow && !beekeeper.openingHours) {
         return false;
       }
 
       return true;
+    }).sort((a, b) => {
+      // Sorting logic
+      switch (sortBy) {
+        case 'distance':
+          return (a.distance || 999) - (b.distance || 999);
+        case 'name':
+          return a.name.localeCompare(b.name);
+        case 'price':
+          const aPrice = Math.min(
+            ...a.honeyTypes
+              .map((h) => (h.price ? parseFloat(h.price) : Infinity))
+              .filter((p) => p !== Infinity)
+          );
+          const bPrice = Math.min(
+            ...b.honeyTypes
+              .map((h) => (h.price ? parseFloat(h.price) : Infinity))
+              .filter((p) => p !== Infinity)
+          );
+          return aPrice - bPrice;
+        default:
+          return 0;
+      }
     });
-  }, [beekeepers, filters]);
+  }, [beekeepers, filters, userLocation, sortBy]);
 
   const handleMarkerClick = (beekeeper: Beekeeper) => {
     setSelectedBeekeeper(beekeeper);
-    setSelectedBeekeeperDetail(beekeeper);
   };
 
   const handleCardClick = (beekeeper: Beekeeper) => {
-    setSelectedBeekeeperDetail(beekeeper);
     setSelectedBeekeeper(beekeeper);
-    // Scroll to top on mobile
-    if (window.innerWidth < 1024) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    // Optional: Scroll to top or open detail modal
   };
 
   return (
-    <main className="min-h-screen bg-gray-50">
+    <main className="min-h-screen bg-gradient-to-br from-amber-50 to-yellow-50">
       {/* Header */}
-      <header className="bg-gradient-to-r from-amber-500 to-yellow-500 text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
+      <header className="bg-gradient-to-r from-amber-500 to-amber-600 shadow-lg">
+        <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            {/* Logo & Title */}
             <div className="flex items-center gap-3">
-              <span className="text-5xl">🍯</span>
+              <span className="text-5xl drop-shadow-lg">🍯</span>
               <div>
-                <h1 className="text-3xl font-bold">Honeypot</h1>
-                <p className="text-amber-100 text-sm">Finde lokale Imker in deiner Nähe</p>
+                <h1 className="text-2xl sm:text-3xl font-bold text-white drop-shadow">
+                  Honeypot
+                </h1>
+                <p className="text-xs sm:text-sm text-amber-100">
+                  Finde lokale Imker in deiner Nähe
+                </p>
               </div>
             </div>
 
-            {/* View Mode Toggle - Desktop */}
-            <div className="hidden lg:flex items-center gap-2 bg-white/20 rounded-lg p-1">
-              <button
-                onClick={() => setViewMode('list')}
-                className={`px-4 py-2 rounded flex items-center gap-2 transition-colors ${
-                  viewMode === 'list'
-                    ? 'bg-white text-amber-600'
-                    : 'text-white hover:bg-white/10'
-                }`}
-              >
-                <ListIcon className="w-4 h-4" />
-                Liste
+            {/* Location Search */}
+            <LocationSearch
+              onLocationChange={handleLocationChange}
+              currentLocation={userLocation?.address}
+            />
+
+            {/* Mobile Filter Toggle */}
+            <button
+              onClick={() => setIsMobileFilterOpen(!isMobileFilterOpen)}
+              className="lg:hidden p-2 bg-white text-amber-600 rounded-lg shadow hover:bg-amber-50 transition-colors"
+            >
+              <SlidersHorizontal className="w-6 h-6" />
+            </button>
+
+            {/* Auth Buttons */}
+            <div className="hidden md:flex items-center gap-3">
+              <button className="px-4 py-2 text-white hover:bg-white/10 rounded-lg transition-colors font-medium">
+                Imker werden
               </button>
-              <button
-                onClick={() => setViewMode('split')}
-                className={`px-4 py-2 rounded flex items-center gap-2 transition-colors ${
-                  viewMode === 'split'
-                    ? 'bg-white text-amber-600'
-                    : 'text-white hover:bg-white/10'
-                }`}
-              >
-                Split
-              </button>
-              <button
-                onClick={() => setViewMode('map')}
-                className={`px-4 py-2 rounded flex items-center gap-2 transition-colors ${
-                  viewMode === 'map'
-                    ? 'bg-white text-amber-600'
-                    : 'text-white hover:bg-white/10'
-                }`}
-              >
-                <MapIcon className="w-4 h-4" />
-                Karte
+              <button className="px-4 py-2 bg-white text-amber-600 hover:bg-amber-50 rounded-lg transition-colors font-semibold">
+                Anmelden
               </button>
             </div>
           </div>
@@ -207,105 +221,90 @@ export default function Home() {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
         <div className="flex flex-col lg:flex-row gap-6">
-          {/* Left Sidebar - Filters */}
-          <aside className="lg:w-80 flex-shrink-0">
-            <FilterSidebar
+          {/* Left Sidebar - Map Preview + Filters */}
+          <aside className={`lg:w-80 flex-shrink-0 ${isMobileFilterOpen ? 'block' : 'hidden lg:block'}`}>
+            <FilterSidebarWithMap
               onFilterChange={setFilters}
               availableHoneyTypes={availableHoneyTypes}
               totalResults={filteredBeekeepers.length}
+              beekeepers={filteredBeekeepers}
+              onMapExpand={() => setIsMapModalOpen(true)}
+              onMarkerClick={handleMarkerClick}
             />
           </aside>
 
-          {/* Right Content Area */}
+          {/* Right Content Area - Beekeeper Cards */}
           <div className="flex-1 min-w-0">
             {loading ? (
-              <div className="flex items-center justify-center h-96">
-                <Loader2 className="w-12 h-12 animate-spin text-amber-600" />
+              <div className="flex items-center justify-center h-96 bg-white rounded-lg shadow">
+                <div className="text-center">
+                  <Loader2 className="w-12 h-12 animate-spin text-amber-600 mx-auto mb-4" />
+                  <p className="text-gray-600">Lade Imker...</p>
+                </div>
               </div>
             ) : (
               <>
                 {/* Results Header */}
-                <div className="mb-4">
-                  <h2 className="text-2xl font-bold text-gray-900">
-                    {filteredBeekeepers.length}{' '}
-                    {filteredBeekeepers.length === 1 ? 'Imker gefunden' : 'Imker gefunden'}
-                  </h2>
-                  <p className="text-gray-600 mt-1">
-                    Sortiert nach Entfernung und Verfügbarkeit
-                  </p>
-                </div>
-
-                {/* Split View - Dynamic shrinking map on scroll */}
-                {viewMode === 'split' && (
-                  <div className="space-y-4">
-                    {/* Fixed Map Section - Dynamic height (50vh -> 25vh on scroll) */}
-                    <div
-                      className="sticky top-0 z-10 w-full bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 ease-out"
-                      style={{ height: `${mapHeight}vh` }}
-                    >
-                      <BeekeeperMap
-                        beekeepers={filteredBeekeepers}
-                        onMarkerClick={handleMarkerClick}
-                      />
+                <div className="mb-4 bg-white rounded-lg shadow p-4">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div>
+                      <h2 className="text-2xl font-bold text-gray-900">
+                        {filteredBeekeepers.length}{' '}
+                        {filteredBeekeepers.length === 1 ? 'Imker gefunden' : 'Imker gefunden'}
+                      </h2>
+                      {userLocation && (
+                        <p className="text-sm text-gray-600 mt-1">
+                          📍 In der Nähe von {userLocation.address.split(',')[0]}
+                        </p>
+                      )}
                     </div>
 
-                    {/* Beekeeper Cards Section */}
-                    {filteredBeekeepers.length === 0 ? (
-                      <div className="text-center py-12 bg-white rounded-lg shadow">
-                        <span className="text-6xl mb-4 block">🔍</span>
-                        <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                          Keine Imker gefunden
-                        </h3>
-                        <p className="text-gray-600">
-                          Versuche die Filter anzupassen oder erweitere den Suchradius
-                        </p>
-                      </div>
-                    ) : (
-                      filteredBeekeepers.map((beekeeper) => (
-                        <BeekeeperCard
-                          key={beekeeper.id}
-                          beekeeper={beekeeper}
-                          onClick={() => handleCardClick(beekeeper)}
-                        />
-                      ))
+                    {/* Sort Options */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-600">Sortieren:</span>
+                      <select
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value as any)}
+                        className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none"
+                      >
+                        <option value="distance">Entfernung</option>
+                        <option value="name">Name</option>
+                        <option value="price">Preis</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Beekeeper Cards Grid */}
+                {filteredBeekeepers.length === 0 ? (
+                  <div className="text-center py-16 bg-white rounded-lg shadow">
+                    <span className="text-6xl mb-4 block">🔍</span>
+                    <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                      Keine Imker gefunden
+                    </h3>
+                    <p className="text-gray-600 mb-4">
+                      Versuche die Filter anzupassen oder erweitere den Suchradius
+                    </p>
+                    {userLocation && (
+                      <button
+                        onClick={() =>
+                          setFilters({ ...filters, maxDistance: filters.maxDistance + 20 })
+                        }
+                        className="px-6 py-2 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-lg transition-colors"
+                      >
+                        Suchradius erweitern
+                      </button>
                     )}
                   </div>
-                )}
-
-                {/* List View */}
-                {viewMode === 'list' && (
-                  <div className="space-y-4">
-                    {filteredBeekeepers.length === 0 ? (
-                      <div className="text-center py-12 bg-white rounded-lg shadow">
-                        <span className="text-6xl mb-4 block">🔍</span>
-                        <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                          Keine Imker gefunden
-                        </h3>
-                        <p className="text-gray-600">
-                          Versuche die Filter anzupassen oder erweitere den Suchradius
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 pb-8">
-                        {filteredBeekeepers.map((beekeeper) => (
-                          <BeekeeperCard
-                            key={beekeeper.id}
-                            beekeeper={beekeeper}
-                            onClick={() => handleCardClick(beekeeper)}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Map View */}
-                {viewMode === 'map' && (
-                  <div className="h-[calc(100vh-250px)] bg-white rounded-lg shadow-md overflow-hidden">
-                    <BeekeeperMap
-                      beekeepers={filteredBeekeepers}
-                      onMarkerClick={handleMarkerClick}
-                    />
+                ) : (
+                  <div className="grid grid-cols-1 gap-4 pb-8">
+                    {filteredBeekeepers.map((beekeeper) => (
+                      <BeekeeperCard
+                        key={beekeeper.id}
+                        beekeeper={beekeeper}
+                        onClick={() => handleCardClick(beekeeper)}
+                      />
+                    ))}
                   </div>
                 )}
               </>
@@ -313,6 +312,20 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {/* Map Modal */}
+      <MapModal
+        isOpen={isMapModalOpen}
+        onClose={() => setIsMapModalOpen(false)}
+        beekeepers={filteredBeekeepers}
+        onMarkerClick={handleMarkerClick}
+        center={
+          userLocation
+            ? [userLocation.latitude, userLocation.longitude]
+            : undefined
+        }
+        zoom={userLocation ? 10 : 7}
+      />
 
       {/* Statistics Footer */}
       <footer className="bg-white border-t border-gray-200 mt-12">
