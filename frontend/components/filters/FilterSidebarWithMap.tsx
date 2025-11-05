@@ -32,9 +32,9 @@ export interface FilterState {
   hasWebsite: boolean;
 }
 
-// ✅ FIX: Konstanten für Default-Werte (Österreich-Zentrum)
-const DEFAULT_CENTER: [number, number] = [47.5, 13.5];
-const DEFAULT_ZOOM = 7;
+// ✅ FIX: Bessere Werte für ganz Österreich sichtbar
+const DEFAULT_CENTER: [number, number] = [47.5, 13.0]; // Leicht nach Westen verschoben
+const DEFAULT_ZOOM = 6; // Weiter raus gezoomt für komplette Österreich-Sicht
 const LOCATION_ZOOM = 10;
 
 export default function FilterSidebar({
@@ -61,41 +61,8 @@ export default function FilterSidebar({
     availability: true,
   });
 
-  // ✅ FIX: Initial State mit Österreich-Zentrum statt undefined
   const [mapCenter, setMapCenter] = useState<[number, number]>(DEFAULT_CENTER);
   const [mapZoom, setMapZoom] = useState(DEFAULT_ZOOM);
-
-  // Drag Detection für Map-Preview
-  const mouseDownPos = useRef<{ x: number; y: number } | null>(null);
-  const isDragging = useRef(false);
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    mouseDownPos.current = { x: e.clientX, y: e.clientY };
-    isDragging.current = false;
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (mouseDownPos.current) {
-      const dx = Math.abs(e.clientX - mouseDownPos.current.x);
-      const dy = Math.abs(e.clientY - mouseDownPos.current.y);
-      
-      if (dx > 5 || dy > 5) {
-        isDragging.current = true;
-      }
-    }
-  };
-
-  const handleMouseUp = (e: React.MouseEvent) => {
-    if (!isDragging.current && mouseDownPos.current) {
-      const target = e.target as HTMLElement;
-      if (!target.closest('button')) {
-        onMapExpand();
-      }
-    }
-    
-    mouseDownPos.current = null;
-    isDragging.current = false;
-  };
 
   const toggleSection = (section: keyof typeof expandedSections) => {
     setExpandedSections((prev) => ({
@@ -136,13 +103,12 @@ export default function FilterSidebar({
     (filters.maxDistance < 50 ? 1 : 0) +
     (filters.priceRange[0] > 0 || filters.priceRange[1] < 50 ? 1 : 0);
 
-  // ✅ FIX: Update map center/zoom when userLocation changes
+  // Update map center/zoom when userLocation changes
   useEffect(() => {
     if (userLocation) {
       setMapCenter(userLocation);
       setMapZoom(LOCATION_ZOOM);
     } else {
-      // ✅ Reset zurück zu Österreich-Zentrum
       setMapCenter(DEFAULT_CENTER);
       setMapZoom(DEFAULT_ZOOM);
     }
@@ -152,32 +118,36 @@ export default function FilterSidebar({
     <div className="space-y-4">
       {/* Kleine Kartenvorschau */}
       <div className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
-        <div 
-          className="relative h-48 group"
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          style={{ cursor: isDragging.current ? 'grabbing' : 'grab' }}
-        >
-          <BeekeeperMap
-            beekeepers={beekeepers}
-            onMarkerClick={onMarkerClick}
-            center={mapCenter}
-            zoom={mapZoom}
-            mapId="map-sidebar-preview"
-          />
-          {/* Overlay mit Vergrößerungs-Button */}
-          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300 flex items-center justify-center pointer-events-none">
+        {/* ✅ FIX: Wrapper mit relativer Position für Overlay */}
+        <div className="relative h-48">
+          {/* Karte - OHNE Drag Detection, damit Marker klickbar sind */}
+          <div className="absolute inset-0">
+            <BeekeeperMap
+              beekeepers={beekeepers}
+              onMarkerClick={onMarkerClick}
+              center={mapCenter}
+              zoom={mapZoom}
+              mapId="map-sidebar-preview"
+            />
+          </div>
+          
+          {/* ✅ FIX: Hover-Overlay nur für visuelles Feedback und Vergrößern-Button */}
+          {/* Pointer-Events nur auf dem Button, nicht auf dem Overlay */}
+          <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-10 transition-opacity duration-300 flex items-center justify-center pointer-events-none">
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onMapExpand();
-              }}
-              className="opacity-0 group-hover:opacity-100 bg-white p-3 rounded-full shadow-lg transition-all duration-300 hover:scale-110 pointer-events-auto"
+              onClick={onMapExpand}
+              className="opacity-0 hover:opacity-100 bg-white p-3 rounded-full shadow-lg transition-all duration-300 hover:scale-110 pointer-events-auto"
               title="Karte vergrößern"
             >
               <Maximize2 className="w-5 h-5 text-amber-600" />
             </button>
+          </div>
+          
+          {/* ✅ NEU: Info-Badge oben links */}
+          <div className="absolute top-2 left-2 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full shadow-md z-10 pointer-events-none">
+            <p className="text-xs font-medium text-gray-700">
+              {beekeepers.length} {beekeepers.length === 1 ? 'Imker' : 'Imker'}
+            </p>
           </div>
         </div>
       </div>
@@ -328,7 +298,6 @@ export default function FilterSidebar({
                       {filters.maxDistance} km
                     </span>
                   </div>
-                  {/* Hinweis wenn kein Standort gesetzt */}
                   {!userLocation && (
                     <p className="text-xs text-amber-600 mt-2 p-2 bg-amber-50 rounded">
                       💡 Gib einen Standort ein, um Imker in deiner Nähe zu finden
