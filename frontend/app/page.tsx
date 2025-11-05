@@ -8,6 +8,7 @@ import FilterSidebarWithMap from '@/components/filters/FilterSidebarWithMap';
 import BeekeeperCard from '@/components/cards/BeekeeperCard';
 import LocationSearch from '@/components/location/LocationSearch';
 import MapModal from '@/components/modals/MapModal';
+import BeekeeperDetailModal from '@/components/modals/BeekeeperDetailModal'; // ✅ NEU
 import { Loader2, SlidersHorizontal } from 'lucide-react';
 
 interface Filters {
@@ -45,6 +46,7 @@ export default function Home() {
 
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false); // ✅ NEU
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   const [sortBy, setSortBy] = useState<'distance' | 'name' | 'price'>('distance');
 
@@ -163,13 +165,23 @@ export default function Home() {
     });
   }, [beekeepers, filters, userLocation, sortBy]);
 
+  // ✅ NEU: Handle marker/pin click - öffnet Detail Modal
   const handleMarkerClick = (beekeeper: Beekeeper) => {
     setSelectedBeekeeper(beekeeper);
+    setIsDetailModalOpen(true);
   };
 
+  // ✅ NEU: Handle card click - öffnet Detail Modal
   const handleCardClick = (beekeeper: Beekeeper) => {
     setSelectedBeekeeper(beekeeper);
-    // Optional: Scroll to top or open detail modal
+    setIsDetailModalOpen(true);
+  };
+
+  // ✅ NEU: Close detail modal
+  const handleCloseDetailModal = () => {
+    setIsDetailModalOpen(false);
+    // Optional: Clear selected beekeeper after a delay
+    setTimeout(() => setSelectedBeekeeper(null), 300);
   };
 
   return (
@@ -325,6 +337,13 @@ export default function Home() {
             : undefined
         }
         zoom={userLocation ? 10 : 7}
+      />
+
+      {/* ✅ NEU: Beekeeper Detail Modal */}
+      <BeekeeperDetailModal
+        isOpen={isDetailModalOpen}
+        onClose={handleCloseDetailModal}
+        beekeeper={selectedBeekeeper}
       />
 
       {/* Statistics Footer */}
