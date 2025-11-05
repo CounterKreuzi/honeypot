@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { X, ChevronDown, ChevronUp, MapPin, Euro, Clock, Maximize2 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { Beekeeper } from '@/types/api';
@@ -21,6 +21,7 @@ interface FilterSidebarProps {
   beekeepers: Beekeeper[];
   onMapExpand: () => void;
   onMarkerClick?: (beekeeper: Beekeeper) => void;
+  userLocation?: [number, number]; // ✅ NEU: Optional user location for map centering
 }
 
 export interface FilterState {
@@ -38,6 +39,7 @@ export default function FilterSidebar({
   beekeepers,
   onMapExpand,
   onMarkerClick,
+  userLocation, // ✅ NEU
 }: FilterSidebarProps) {
   const [filters, setFilters] = useState<FilterState>({
     honeyTypes: [],
@@ -54,7 +56,7 @@ export default function FilterSidebar({
     availability: true,
   });
 
-  // ✅ NEU: Drag Detection
+  // Drag Detection für Map-Preview
   const mouseDownPos = useRef<{ x: number; y: number } | null>(null);
   const isDragging = useRef(false);
 
@@ -68,7 +70,6 @@ export default function FilterSidebar({
       const dx = Math.abs(e.clientX - mouseDownPos.current.x);
       const dy = Math.abs(e.clientY - mouseDownPos.current.y);
       
-      // Wenn Bewegung > 5px, dann ist es ein Drag
       if (dx > 5 || dy > 5) {
         isDragging.current = true;
       }
@@ -76,9 +77,7 @@ export default function FilterSidebar({
   };
 
   const handleMouseUp = (e: React.MouseEvent) => {
-    // Nur Modal öffnen wenn es KEIN Drag war
     if (!isDragging.current && mouseDownPos.current) {
-      // Prüfe ob der Klick nicht auf dem Maximize-Button war
       const target = e.target as HTMLElement;
       if (!target.closest('button')) {
         onMapExpand();
@@ -128,6 +127,20 @@ export default function FilterSidebar({
     (filters.maxDistance < 50 ? 1 : 0) +
     (filters.priceRange[0] > 0 || filters.priceRange[1] < 50 ? 1 : 0);
 
+  // ✅ NEU: Automatisch Karte zentrieren wenn userLocation sich ändert
+  const [mapCenter, setMapCenter] = useState<[number, number]>([47.5, 13.5]);
+  const [mapZoom, setMapZoom] = useState(7);
+
+  useEffect(() => {
+    if (userLocation) {
+      setMapCenter(userLocation);
+      setMapZoom(10);
+    } else {
+      setMapCenter([47.5, 13.5]);
+      setMapZoom(7);
+    }
+  }, [userLocation]);
+
   return (
     <div className="space-y-4">
       {/* Kleine Kartenvorschau */}
@@ -142,7 +155,8 @@ export default function FilterSidebar({
           <BeekeeperMap
             beekeepers={beekeepers}
             onMarkerClick={onMarkerClick}
-            zoom={6}
+            center={mapCenter} // ✅ Verwende dynamisches Center
+            zoom={mapZoom}     // ✅ Verwende dynamisches Zoom
             mapId="map-sidebar-preview"
           />
           {/* Overlay mit Vergrößerungs-Button */}
@@ -176,6 +190,9 @@ export default function FilterSidebar({
               </button>
             )}
           </div>
+          <p className="text-sm text-gray-600">
+            {totalResults} {totalResults === 1 ? 'Ergebnis' : 'Ergebnisse'}
+          </p>
         </div>
 
         <div>
@@ -203,20 +220,24 @@ export default function FilterSidebar({
 
             {expandedSections.honeyTypes && (
               <div className="px-4 pb-4 space-y-2">
-                {availableHoneyTypes.map((type) => (
-                  <label
-                    key={type}
-                    className="flex items-center gap-3 cursor-pointer hover:bg-amber-50 p-2 rounded transition-colors"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={filters.honeyTypes.includes(type)}
-                      onChange={() => toggleHoneyType(type)}
-                      className="w-4 h-4 text-amber-600 border-gray-300 rounded focus:ring-amber-500"
-                    />
-                    <span className="text-sm text-gray-700">{type}</span>
-                  </label>
-                ))}
+                {availableHoneyTypes.length > 0 ? (
+                  availableHoneyTypes.map((type) => (
+                    <label
+                      key={type}
+                      className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={filters.honeyTypes.includes(type)}
+                        onChange={() => toggleHoneyType(type)}
+                        className="w-4 h-4 text-amber-600 border-gray-300 rounded focus:ring-2 focus:ring-amber-500"
+                      />
+                      <span className="text-sm text-gray-700">{type}</span>
+                    </label>
+                  ))
+                ) : (
+                  <p className="text-sm text-gray-500 p-2">Keine Honigsorten verfügbar</p>
+                )}
               </div>
             )}
           </div>
@@ -264,7 +285,7 @@ export default function FilterSidebar({
             )}
           </div>
 
-          {/* Entfernung Filter */}
+          {/* Max. Entfernung Filter */}
           <div className="border-b border-gray-200">
             <button
               onClick={() => toggleSection('distance')}
@@ -287,7 +308,7 @@ export default function FilterSidebar({
                   <input
                     type="range"
                     min="1"
-                    max="100"
+                    max="200"
                     value={filters.maxDistance}
                     onChange={(e) =>
                       updateFilters({ maxDistance: parseInt(e.target.value) })
@@ -300,6 +321,12 @@ export default function FilterSidebar({
                       {filters.maxDistance} km
                     </span>
                   </div>
+                  {/* ✅ NEU: Hinweis wenn kein Standort gesetzt */}
+                  {!userLocation && (
+                    <p className="text-xs text-amber-600 mt-2 p-2 bg-amber-50 rounded">
+                      💡 Gib einen Standort ein, um Imker in deiner Nähe zu finden
+                    </p>
+                  )}
                 </div>
               </div>
             )}
@@ -324,24 +351,24 @@ export default function FilterSidebar({
 
             {expandedSections.availability && (
               <div className="px-4 pb-4 space-y-3">
-                <label className="flex items-center gap-3 cursor-pointer hover:bg-amber-50 p-2 rounded transition-colors">
+                <label className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
                   <input
                     type="checkbox"
                     checked={filters.openNow}
                     onChange={(e) => updateFilters({ openNow: e.target.checked })}
-                    className="w-4 h-4 text-amber-600 border-gray-300 rounded focus:ring-amber-500"
+                    className="w-4 h-4 text-amber-600 border-gray-300 rounded focus:ring-2 focus:ring-amber-500"
                   />
                   <span className="text-sm text-gray-700">Jetzt geöffnet</span>
                 </label>
 
-                <label className="flex items-center gap-3 cursor-pointer hover:bg-amber-50 p-2 rounded transition-colors">
+                <label className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
                   <input
                     type="checkbox"
                     checked={filters.hasWebsite}
                     onChange={(e) => updateFilters({ hasWebsite: e.target.checked })}
-                    className="w-4 h-4 text-amber-600 border-gray-300 rounded focus:ring-amber-500"
+                    className="w-4 h-4 text-amber-600 border-gray-300 rounded focus:ring-2 focus:ring-amber-500"
                   />
-                  <span className="text-sm text-gray-700">Online-Shop verfügbar</span>
+                  <span className="text-sm text-gray-700">Mit Online-Shop</span>
                 </label>
               </div>
             )}
