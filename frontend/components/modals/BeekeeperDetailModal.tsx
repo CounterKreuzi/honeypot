@@ -177,9 +177,50 @@ export default function BeekeeperDetailModal({
                 <h3 className="text-xl font-semibold text-gray-900">Öffnungszeiten</h3>
               </div>
               <div className="p-4 bg-gray-50 rounded-lg">
-                <p className="text-gray-700 whitespace-pre-line">
-                  {beekeeper.openingHours}
-                </p>
+                <div className="space-y-2">
+                  {beekeeper.openingHours.monday && (
+                    <div className="flex justify-between">
+                      <span className="font-medium text-gray-700">Montag:</span>
+                      <span className="text-gray-600">{beekeeper.openingHours.monday}</span>
+                    </div>
+                  )}
+                  {beekeeper.openingHours.tuesday && (
+                    <div className="flex justify-between">
+                      <span className="font-medium text-gray-700">Dienstag:</span>
+                      <span className="text-gray-600">{beekeeper.openingHours.tuesday}</span>
+                    </div>
+                  )}
+                  {beekeeper.openingHours.wednesday && (
+                    <div className="flex justify-between">
+                      <span className="font-medium text-gray-700">Mittwoch:</span>
+                      <span className="text-gray-600">{beekeeper.openingHours.wednesday}</span>
+                    </div>
+                  )}
+                  {beekeeper.openingHours.thursday && (
+                    <div className="flex justify-between">
+                      <span className="font-medium text-gray-700">Donnerstag:</span>
+                      <span className="text-gray-600">{beekeeper.openingHours.thursday}</span>
+                    </div>
+                  )}
+                  {beekeeper.openingHours.friday && (
+                    <div className="flex justify-between">
+                      <span className="font-medium text-gray-700">Freitag:</span>
+                      <span className="text-gray-600">{beekeeper.openingHours.friday}</span>
+                    </div>
+                  )}
+                  {beekeeper.openingHours.saturday && (
+                    <div className="flex justify-between">
+                      <span className="font-medium text-gray-700">Samstag:</span>
+                      <span className="text-gray-600">{beekeeper.openingHours.saturday}</span>
+                    </div>
+                  )}
+                  {beekeeper.openingHours.sunday && (
+                    <div className="flex justify-between">
+                      <span className="font-medium text-gray-700">Sonntag:</span>
+                      <span className="text-gray-600">{beekeeper.openingHours.sunday}</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
