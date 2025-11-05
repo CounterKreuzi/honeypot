@@ -58,17 +58,18 @@ export default function MapModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    // ✅ FIX: z-[9999] statt z-50 für höchste Priorität
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black bg-opacity-50 backdrop-blur-sm"
+        className="absolute inset-0 bg-black bg-opacity-70 backdrop-blur-sm"
         onClick={onClose}
       />
 
       {/* Modal Content */}
-      <div className="relative w-full h-full md:w-[95vw] md:h-[95vh] md:rounded-lg overflow-hidden bg-white shadow-2xl">
+      <div className="relative w-full h-full md:w-[95vw] md:h-[95vh] md:rounded-lg overflow-hidden bg-white shadow-2xl z-[10000]">
         {/* Header */}
-        <div className="absolute top-0 left-0 right-0 z-10 bg-white shadow-md px-4 py-3 flex items-center justify-between">
+        <div className="absolute top-0 left-0 right-0 z-[10001] bg-white shadow-md px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Maximize2 className="w-5 h-5 text-amber-600" />
             <h3 className="text-lg font-semibold text-gray-900">
