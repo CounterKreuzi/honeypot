@@ -115,15 +115,7 @@ export default function FilterSidebar({
             </button>
           </div>
         </div>
-        <div className="px-3 py-2 bg-gray-50 border-t border-gray-200 text-center">
-          <p className="text-xs text-gray-600">
-            Karte (Leaflet + OpenStreetMap)
-          </p>
-          <p className="text-xs text-gray-500 mt-1">
-            <span className="font-medium">{beekeepers.length}</span> Imker gefunden
-          </p>
-        </div>
-      </div>
+        
 
       {/* Filter Bereich */}
       <div className="bg-white rounded-lg shadow-md border border-gray-200 sticky top-4">
@@ -139,11 +131,6 @@ export default function FilterSidebar({
                 Zurücksetzen
               </button>
             )}
-          </div>
-          <p className="text-sm text-gray-600">
-            {totalResults} {totalResults === 1 ? 'Imker' : 'Imker'} gefunden
-          </p>
-        </div>
 
         <div className="overflow-y-auto max-h-[calc(100vh-500px)]">
           {/* Honigsorten Filter */}
