@@ -1,25 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { X, ChevronDown, ChevronUp, MapPin, Euro, Clock, Maximize2 } from 'lucide-react';
-import dynamic from 'next/dynamic';
+import { X, ChevronDown, ChevronUp, MapPin, Euro, Clock } from 'lucide-react';
 import { Beekeeper } from '@/types/api';
-
-const BeekeeperMap = dynamic(() => import('@/components/map/BeekeeperMap'), {
-  ssr: false,
-  loading: () => (
-    <div className="w-full h-full flex items-center justify-center bg-gray-100 rounded-lg">
-      <p className="text-xs text-gray-600">Karte wird geladen...</p>
-    </div>
-  ),
-});
 
 interface FilterSidebarProps {
   onFilterChange: (filters: FilterState) => void;
   availableHoneyTypes: string[];
   totalResults: number;
-  beekeepers: Beekeeper[]; // Für die Kartenvorschau
-  onMapExpand: () => void; // Callback für Karten-Modal
+  beekeepers: Beekeeper[];
+  onMapExpand: () => void;
   onMarkerClick?: (beekeeper: Beekeeper) => void;
 }
 
@@ -47,11 +37,12 @@ export default function FilterSidebar({
     hasWebsite: false,
   });
 
+  // ✅ ÄNDERUNG 1: Alle Filter standardmäßig aufgeklappt (availability: true)
   const [expandedSections, setExpandedSections] = useState({
     honeyTypes: true,
     price: true,
     distance: true,
-    availability: false,
+    availability: true, // ← Geändert von false auf true
   });
 
   const toggleSection = (section: keyof typeof expandedSections) => {
@@ -95,36 +86,8 @@ export default function FilterSidebar({
 
   return (
     <div className="space-y-4">
-      {/* Kleine Kartenvorschau */}
-      <div className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
-        <div className="relative h-48 group cursor-pointer" onClick={onMapExpand}>
-          <BeekeeperMap
-            beekeepers={beekeepers}
-            onMarkerClick={onMarkerClick}
-            zoom={6}
-            mapId="map-sidebar-preview"
-          />
-          {/* Overlay mit Vergrößerungs-Button */}
-          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300 flex items-center justify-center">
-            <button
-              onClick={onMapExpand}
-              className="opacity-0 group-hover:opacity-100 bg-white p-3 rounded-full shadow-lg transition-all duration-300 hover:scale-110"
-              title="Karte vergrößern"
-            >
-              <Maximize2 className="w-5 h-5 text-amber-600" />
-            </button>
-          </div>
-        </div>
-        <div className="px-3 py-2 bg-gray-50 border-t border-gray-200 text-center">
-          <p className="text-xs text-gray-600">
-            Karte (Leaflet + OpenStreetMap)
-          </p>
-          <p className="text-xs text-gray-500 mt-1">
-            <span className="font-medium">{beekeepers.length}</span> Imker gefunden
-          </p>
-        </div>
-      </div>
-
+      {/* ❌ ÄNDERUNG 2: Kartenvorschau komplett entfernt */}
+      
       {/* Filter Bereich */}
       <div className="bg-white rounded-lg shadow-md border border-gray-200 sticky top-4">
         {/* Header */}
@@ -140,12 +103,11 @@ export default function FilterSidebar({
               </button>
             )}
           </div>
-          <p className="text-sm text-gray-600">
-            {totalResults} {totalResults === 1 ? 'Imker' : 'Imker'} gefunden
-          </p>
+          {/* ❌ ÄNDERUNG 3: "X Imker gefunden" Text entfernt */}
         </div>
 
-        <div className="overflow-y-auto max-h-[calc(100vh-500px)]">
+        {/* ✅ ÄNDERUNG 4: overflow-y-auto und max-h entfernt - scrollt jetzt mit der Seite */}
+        <div>
           {/* Honigsorten Filter */}
           <div className="border-b border-gray-200">
             <button
@@ -314,33 +276,6 @@ export default function FilterSidebar({
             )}
           </div>
         </div>
-
-        {/* Active Filters Summary */}
-        {activeFilterCount > 0 && (
-          <div className="p-4 bg-amber-50 border-t border-gray-200">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-900">
-                {activeFilterCount} aktive Filter
-              </span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {filters.honeyTypes.map((type) => (
-                <span
-                  key={type}
-                  className="inline-flex items-center gap-1 bg-white px-2 py-1 rounded-full text-xs text-gray-700 border border-amber-200"
-                >
-                  {type}
-                  <button
-                    onClick={() => toggleHoneyType(type)}
-                    className="hover:text-red-600 transition-colors"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
