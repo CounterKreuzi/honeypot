@@ -2,74 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Leaflet Map Overrides */
+/* Leaflet overrides */
 .leaflet-container {
   height: 100%;
   width: 100%;
-  font-family: inherit;
 }
 
-/* Custom Popup Styling */
 .leaflet-popup-content-wrapper {
-  border-radius: 12px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border-radius: 8px;
 }
 
 .leaflet-popup-content {
   margin: 0;
-  line-height: 1.4;
-}
-
-.leaflet-popup-tip {
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-/* Custom Popup Class */
-.custom-popup .leaflet-popup-content-wrapper {
-  background: white;
-  padding: 0;
-}
-
-.custom-popup .leaflet-popup-content {
-  margin: 0;
-  width: auto !important;
-}
-
-/* Marker Hover Effect */
-.leaflet-marker-icon {
-  transition: transform 0.2s ease;
-}
-
-.leaflet-marker-icon:hover {
-  transform: scale(1.1);
-  z-index: 1000 !important;
-}
-
-/* Ensure markers are clickable */
-.leaflet-marker-pane {
-  z-index: 600;
-}
-
-.leaflet-popup-pane {
-  z-index: 700;
-}
-
-/* Scrollbar Styling */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #d97706;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #b45309;
 }

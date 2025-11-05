@@ -5,7 +5,6 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Beekeeper } from '@/types/api';
 
-// Fix Leaflet default icon issue
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
@@ -23,8 +22,8 @@ interface BeekeeperMapProps {
 
 export default function BeekeeperMap({
   beekeepers,
-  center = [47.5, 13.0],
-  zoom = 6,
+  center = [47.5, 13.5],
+  zoom = 7,
   onMarkerClick,
   mapId = 'map',
 }: BeekeeperMapProps) {
@@ -33,7 +32,7 @@ export default function BeekeeperMap({
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Cleanup alte Karte
+    // Cleanup alte Karte wenn vorhanden
     if (mapRef.current) {
       mapRef.current.remove();
       mapRef.current = null;
@@ -42,20 +41,16 @@ export default function BeekeeperMap({
     // Warte bis Container im DOM ist
     if (!containerRef.current) return;
 
+    // Initialisiere neue Karte
     try {
-      // Initialisiere Karte
+      // ✅ FIX 1: Verwende setView ohne Animation
       mapRef.current = L.map(containerRef.current, {
-        zoomAnimation: false,
-        fadeAnimation: false,
-        // ✅ Wichtig: scrollWheelZoom nur in großer Karte
-        scrollWheelZoom: mapId === 'map-modal',
-        dragging: true, // ✅ Dragging immer erlauben
-        touchZoom: true,
-        doubleClickZoom: true,
+        zoomAnimation: false, // Deaktiviert Zoom-Animation
+        fadeAnimation: false, // Deaktiviert Fade-Animation
       }).setView(center, zoom);
 
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap',
+        attribution: '© OpenStreetMap contributors',
         maxZoom: 19,
       }).addTo(mapRef.current);
 
@@ -68,57 +63,38 @@ export default function BeekeeperMap({
           ? parseFloat(beekeeper.longitude) 
           : beekeeper.longitude;
 
-        if (isNaN(lat) || isNaN(lng)) {
-          console.warn(`Invalid coordinates for ${beekeeper.name}`);
-          return;
-        }
+        if (isNaN(lat) || isNaN(lng)) return;
 
         const marker = L.marker([lat, lng]).addTo(mapRef.current!);
 
-        // Popup Content
         const popupContent = `
-          <div class="p-2 max-w-xs">
-            <h3 class="font-bold text-base mb-1 text-gray-900">${beekeeper.name}</h3>
-            ${beekeeper.description ? `<p class="text-xs text-gray-600 mb-2 line-clamp-2">${beekeeper.description.substring(0, 80)}...</p>` : ''}
-            ${beekeeper.distance !== undefined ? `<p class="text-xs font-semibold text-amber-600 mb-1">📍 ${beekeeper.distance.toFixed(1)} km entfernt</p>` : ''}
-            <p class="text-xs text-gray-700 mt-2">${beekeeper.address}</p>
-            ${beekeeper.city ? `<p class="text-xs text-gray-600">${beekeeper.postalCode || ''} ${beekeeper.city}</p>` : ''}
-            ${beekeeper.phone ? `<p class="text-xs text-gray-700 mt-1">📞 ${beekeeper.phone}</p>` : ''}
-            ${beekeeper.honeyTypes.length > 0 ? `
-              <div class="mt-2 pt-2 border-t border-gray-200">
-                <p class="text-xs font-semibold text-gray-700">🍯 ${beekeeper.honeyTypes.length} ${beekeeper.honeyTypes.length === 1 ? 'Honigsorte' : 'Honigsorten'}</p>
-              </div>
-            ` : ''}
-            ${onMarkerClick ? `<p class="text-xs text-amber-600 font-medium mt-2 cursor-pointer hover:text-amber-700">→ Details anzeigen</p>` : ''}
+          <div class="p-2">
+            <h3 class="font-bold text-lg mb-1">${beekeeper.name}</h3>
+            ${beekeeper.description ? `<p class="text-sm text-gray-600 mb-2">${beekeeper.description.substring(0, 100)}...</p>` : ''}
+            ${beekeeper.distance !== undefined ? `<p class="text-sm font-semibold text-amber-600">📍 ${beekeeper.distance} km entfernt</p>` : ''}
+            <p class="text-sm mt-2">${beekeeper.address}, ${beekeeper.city || ''}</p>
+            ${beekeeper.phone ? `<p class="text-sm">📞 ${beekeeper.phone}</p>` : ''}
+            ${beekeeper.honeyTypes.length > 0 ? `<p class="text-sm mt-2 font-semibold">🍯 ${beekeeper.honeyTypes.length} Honigsorten</p>` : ''}
           </div>
         `;
 
-        marker.bindPopup(popupContent, {
-          maxWidth: 300,
-          className: 'custom-popup'
-        });
+        marker.bindPopup(popupContent);
 
-        // ✅ WICHTIG: Click Handler für onMarkerClick
         if (onMarkerClick) {
-          marker.on('click', (e) => {
-            // Verhindere Event-Bubbling
-            L.DomEvent.stopPropagation(e);
-            onMarkerClick(beekeeper);
-          });
+          marker.on('click', () => onMarkerClick(beekeeper));
         }
 
         markersRef.current.push(marker);
       });
 
-      // Auto-fit nur für große Modal-Karte mit vielen Markern
-      if (mapId === 'map-modal' && markersRef.current.length > 1) {
+      // ✅ FIX 2: fitBounds ohne Animation oder nur für große Karte
+      if (markersRef.current.length > 0 && mapId === 'map-modal') {
+        // Nur in der großen Modal-Karte automatisch zoomen
         const group = L.featureGroup(markersRef.current);
         mapRef.current.fitBounds(group.getBounds().pad(0.1), {
-          animate: false,
-          maxZoom: 12, // Nicht zu nah reinzoomen
+          animate: false, // Keine Animation
         });
       }
-
     } catch (error) {
       console.error('Error initializing map:', error);
     }
@@ -138,11 +114,7 @@ export default function BeekeeperMap({
   return (
     <div 
       ref={containerRef}
-      className="w-full h-full rounded-lg"
-      style={{ 
-        cursor: mapId === 'map-sidebar-preview' ? 'pointer' : 'grab',
-        minHeight: '200px'
-      }}
+      className="w-full h-full rounded-lg shadow-lg" 
     />
   );
 }
