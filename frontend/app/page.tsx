@@ -8,7 +8,7 @@ import FilterSidebarWithMap from '@/components/filters/FilterSidebarWithMap';
 import BeekeeperCard from '@/components/cards/BeekeeperCard';
 import LocationSearch from '@/components/location/LocationSearch';
 import MapModal from '@/components/modals/MapModal';
-import BeekeeperDetailModal from '@/components/modals/BeekeeperDetailModal'; // ✅ NEU
+import BeekeeperDetailModal from '@/components/modals/BeekeeperDetailModal';
 import { Loader2, SlidersHorizontal } from 'lucide-react';
 
 interface Filters {
@@ -46,10 +46,11 @@ export default function Home() {
 
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false); // ✅ NEU
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   const [sortBy, setSortBy] = useState<'distance' | 'name' | 'price'>('distance');
 
+  // Initial load - alle Imker ohne Location
   useEffect(() => {
     loadBeekeepers();
   }, []);
@@ -68,25 +69,51 @@ export default function Home() {
     }
   };
 
-  // Handle location change from LocationSearch
+  // ✅ NEUE FUNKTION: Handle location change from LocationSearch
   const handleLocationChange = async (location: UserLocation) => {
+    console.log('🔍 Standort-Suche gestartet:', location);
+    
     setUserLocation(location);
+    
     try {
       setLoading(true);
+      
+      // ✅ FIX: Verwende den aktuellen maxDistance Filter
       const data = await beekeepersApi.searchNearby(
         location.latitude,
         location.longitude,
         filters.maxDistance
       );
+      
+      console.log(`✅ ${data.length} Imker gefunden im Umkreis von ${filters.maxDistance}km`);
+      
       setBeekeepers(data);
       setError(null);
+      
+      // Optional: Zeige kurze Erfolgsmeldung
+      if (data.length === 0) {
+        setError(`Keine Imker im Umkreis von ${filters.maxDistance}km gefunden. Versuche den Suchradius zu erhöhen.`);
+      }
+      
     } catch (error) {
       console.error('Failed to search beekeepers:', error);
-      setError('Fehler bei der Suche');
+      setError('Fehler bei der Standort-Suche. Bitte versuche es erneut.');
     } finally {
       setLoading(false);
     }
   };
+
+  // ✅ NEUE FUNKTION: Re-search wenn maxDistance Filter geändert wird
+  useEffect(() => {
+    if (userLocation) {
+      // Debounce für bessere Performance
+      const timeoutId = setTimeout(() => {
+        handleLocationChange(userLocation);
+      }, 300);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [filters.maxDistance]);
 
   // Extract available honey types
   const availableHoneyTypes = useMemo(() => {
@@ -122,7 +149,8 @@ export default function Home() {
         }
       }
 
-      // Distance filter (if user location is set)
+      // Distance filter wird bereits im Backend gemacht (searchNearby)
+      // Hier nur noch zusätzliche Client-side Validierung
       if (userLocation && beekeeper.distance !== undefined) {
         if (beekeeper.distance > filters.maxDistance) {
           return false;
@@ -165,22 +193,21 @@ export default function Home() {
     });
   }, [beekeepers, filters, userLocation, sortBy]);
 
-  // ✅ NEU: Handle marker/pin click - öffnet Detail Modal
+  // Handle marker/pin click - öffnet Detail Modal
   const handleMarkerClick = (beekeeper: Beekeeper) => {
     setSelectedBeekeeper(beekeeper);
     setIsDetailModalOpen(true);
   };
 
-  // ✅ NEU: Handle card click - öffnet Detail Modal
+  // Handle card click - öffnet Detail Modal
   const handleCardClick = (beekeeper: Beekeeper) => {
     setSelectedBeekeeper(beekeeper);
     setIsDetailModalOpen(true);
   };
 
-  // ✅ NEU: Close detail modal
+  // Close detail modal
   const handleCloseDetailModal = () => {
     setIsDetailModalOpen(false);
-    // Optional: Clear selected beekeeper after a delay
     setTimeout(() => setSelectedBeekeeper(null), 300);
   };
 
@@ -203,7 +230,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Location Search */}
+            {/* Location Search - ✅ WICHTIG: onLocationChange ist jetzt verbunden */}
             <LocationSearch
               onLocationChange={handleLocationChange}
               currentLocation={userLocation?.address}
@@ -242,6 +269,7 @@ export default function Home() {
               beekeepers={filteredBeekeepers}
               onMapExpand={() => setIsMapModalOpen(true)}
               onMarkerClick={handleMarkerClick}
+              userLocation={userLocation ? [userLocation.latitude, userLocation.longitude] : undefined}
             />
           </aside>
 
@@ -295,16 +323,19 @@ export default function Home() {
                       Keine Imker gefunden
                     </h3>
                     <p className="text-gray-600 mb-4">
-                      Versuche die Filter anzupassen oder erweitere den Suchradius
+                      {userLocation 
+                        ? `Versuche die Filter anzupassen oder erweitere den Suchradius auf mehr als ${filters.maxDistance}km`
+                        : 'Gib einen Standort ein, um Imker in deiner Nähe zu finden'
+                      }
                     </p>
                     {userLocation && (
                       <button
                         onClick={() =>
-                          setFilters({ ...filters, maxDistance: filters.maxDistance + 20 })
+                          setFilters({ ...filters, maxDistance: Math.min(filters.maxDistance + 20, 200) })
                         }
                         className="px-6 py-2 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-lg transition-colors"
                       >
-                        Suchradius erweitern
+                        Suchradius erweitern ({filters.maxDistance + 20}km)
                       </button>
                     )}
                   </div>
@@ -339,7 +370,7 @@ export default function Home() {
         zoom={userLocation ? 10 : 7}
       />
 
-      {/* ✅ NEU: Beekeeper Detail Modal */}
+      {/* Beekeeper Detail Modal */}
       <BeekeeperDetailModal
         isOpen={isDetailModalOpen}
         onClose={handleCloseDetailModal}
