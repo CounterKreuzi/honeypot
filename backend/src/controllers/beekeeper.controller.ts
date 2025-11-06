@@ -486,7 +486,7 @@ export const searchNearby = async (
   }
 };
 
-export const advancedSearch = async (
+export const searchWithFilters = async (
   req: Request,
   res: Response
 ): Promise<void> => {
@@ -627,6 +627,67 @@ export const advancedSearch = async (
       success: false,
       message: 'Fehler bei der erweiterten Suche',
       error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+};
+
+export const getHoneyTypes = async (
+  _req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const rows = await honeyTypeRepository
+      .createQueryBuilder('honeyType')
+      .select('DISTINCT honeyType.name', 'name')
+      .where('honeyType.name IS NOT NULL')
+      .orderBy('name', 'ASC')
+      .getRawMany<{ name: string | null }>();
+
+    const honeyTypes = rows
+      .map((row) => row.name)
+      .filter((name): name is string => Boolean(name));
+
+    res.json({
+      success: true,
+      data: honeyTypes,
+      count: honeyTypes.length,
+    });
+  } catch (error) {
+    console.error('Get honey types error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Fehler beim Laden der Honigsorten',
+    });
+  }
+};
+
+export const getCities = async (
+  _req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const rows = await beekeeperRepository
+      .createQueryBuilder('beekeeper')
+      .select('DISTINCT beekeeper.city', 'city')
+      .where('beekeeper.isActive = :isActive', { isActive: true })
+      .andWhere('beekeeper.city IS NOT NULL')
+      .orderBy('city', 'ASC')
+      .getRawMany<{ city: string | null }>();
+
+    const cities = rows
+      .map((row) => row.city)
+      .filter((city): city is string => Boolean(city));
+
+    res.json({
+      success: true,
+      data: cities,
+      count: cities.length,
+    });
+  } catch (error) {
+    console.error('Get cities error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Fehler beim Laden der Städte',
     });
   }
 };

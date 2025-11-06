@@ -5,6 +5,7 @@ import { Beekeeper } from '../entities/Beekeeper';
 import { hashPassword, comparePassword } from '../utils/password';
 import { generateToken } from '../utils/jwt';
 import { registerSchema, loginSchema } from '../utils/validation';
+import { AuthRequest } from '../middleware/auth';
 
 const userRepository = AppDataSource.getRepository(User);
 const beekeeperRepository = AppDataSource.getRepository(Beekeeper);
@@ -240,6 +241,58 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     res.status(500).json({
       success: false,
       message: 'Fehler beim Login',
+    });
+  }
+};
+
+export const getProfile = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        message: 'Authentifizierung erforderlich',
+      });
+      return;
+    }
+
+    const user = await userRepository.findOne({ where: { id: userId } });
+
+    if (!user) {
+      res.status(404).json({
+        success: false,
+        message: 'Benutzer nicht gefunden',
+      });
+      return;
+    }
+
+    const beekeeper = await beekeeperRepository.findOne({
+      where: { user: { id: userId } },
+      relations: ['honeyTypes'],
+    });
+
+    res.json({
+      success: true,
+      data: {
+        user: {
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          isVerified: user.isVerified,
+          createdAt: user.createdAt,
+        },
+        beekeeper,
+      },
+    });
+  } catch (error) {
+    console.error('Get profile error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Fehler beim Laden des Profils',
     });
   }
 };
