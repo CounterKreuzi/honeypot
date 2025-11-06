@@ -13,6 +13,10 @@ export const registerSchema = Joi.object({
     'string.min': 'Name muss mindestens 2 Zeichen lang sein',
     'any.required': 'Name ist erforderlich',
   }),
+  // 🆕 Optionale Adressdaten für Geocoding während Registrierung
+  address: Joi.string().min(5).max(200).optional().allow(''),
+  city: Joi.string().max(100).optional().allow(''),
+  postalCode: Joi.string().max(20).optional().allow(''),
 });
 
 export const loginSchema = Joi.object({
