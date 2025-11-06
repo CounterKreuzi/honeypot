@@ -22,7 +22,7 @@ app.use(cors(corsOptions));
 app.use(express.json());
 
 // Health Check
-app.get('/health', (req, res) => {
+app.get('/health', (_req, res) => {
   res.json({ 
     status: 'ok', 
     message: 'Honeypot API is running',
@@ -37,7 +37,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/beekeepers', beekeeperRoutes);
 
 // 404 Handler
-app.use((req, res) => {
+app.use((_req, res) => {
   res.status(404).json({
     success: false,
     message: 'Route nicht gefunden',
