@@ -545,9 +545,9 @@ export const advancedSearch = async (
 
     const beekeepers = await queryBuilder.getMany();
 
-    let results = beekeepers;
+    let results: (Beekeeper & { distance?: number })[] = beekeepers;
     if (latitude && longitude) {
-      results = beekeepers
+      const resultsWithDistance = beekeepers
         .map((beekeeper) => {
           const beekeeperLat = parseFloat(beekeeper.latitude.toString());
           const beekeeperLng = parseFloat(beekeeper.longitude.toString());
@@ -581,8 +581,10 @@ export const advancedSearch = async (
         );
 
       if (sortBy === 'distance') {
-        results.sort((a, b) => a.distance - b.distance);
+        resultsWithDistance.sort((a, b) => a.distance - b.distance);
       }
+      
+      results = resultsWithDistance;
     }
 
     if (sortBy === 'name') {
