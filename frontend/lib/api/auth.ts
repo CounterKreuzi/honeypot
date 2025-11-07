@@ -9,6 +9,18 @@ export const authApi = {
     );
     return response.data;
   },
+  registerComplete: async (
+    token: string,
+    password: string,
+    name: string,
+    opts?: { address?: string; city?: string; postalCode?: string }
+  ) => {
+    const response = await apiClient.post<{ success: boolean; message: string; data?: any }>(
+      '/api/auth/register-complete',
+      { token, password, name, ...(opts || {}) }
+    );
+    return response.data;
+  },
   register: async (
     email: string,
     password: string,
@@ -49,6 +61,13 @@ export const authApi = {
     const response = await apiClient.post<{ success: boolean; message: string }>(
       '/api/auth/reset-password',
       { token, password }
+    );
+    return response.data;
+  },
+  verifyEmail: async (token: string) => {
+    const response = await apiClient.post<{ success: boolean; message: string }>(
+      '/api/auth/verify-email',
+      { token }
     );
     return response.data;
   },
