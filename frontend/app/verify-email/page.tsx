@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { authApi } from '@/lib/api/auth';
 import Link from 'next/link';
 
-export default function VerifyEmailPage() {
+function VerifyEmailInner() {
   const params = useSearchParams();
   const token = useMemo(() => params.get('token') || '', [params]);
 
@@ -59,3 +59,16 @@ export default function VerifyEmailPage() {
   );
 }
 
+export default function VerifyEmailPage() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 to-yellow-50 px-4">
+        <div className="w-full max-w-md bg-white shadow-lg rounded-xl p-6 text-center">
+          <p className="text-gray-600">Verifiziere …</p>
+        </div>
+      </main>
+    }>
+      <VerifyEmailInner />
+    </Suspense>
+  );
+}
