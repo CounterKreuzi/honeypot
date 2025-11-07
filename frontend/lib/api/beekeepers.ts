@@ -76,4 +76,50 @@ export const beekeepersApi = {
     );
     return response.data.data;
   },
+
+  // Authenticated: own profile
+  getMyProfile: async (): Promise<Beekeeper> => {
+    const response = await apiClient.get<{ success: boolean; data: Beekeeper }>(
+      '/api/beekeepers/profile'
+    );
+    return response.data.data;
+  },
+
+  updateProfile: async (
+    payload: Partial<Pick<Beekeeper, 'name' | 'description' | 'address' | 'city' | 'postalCode' | 'country' | 'phone' | 'website' | 'openingHours'>>
+  ): Promise<Beekeeper> => {
+    const response = await apiClient.put<{ success: boolean; data: Beekeeper }>(
+      '/api/beekeepers/profile',
+      payload
+    );
+    return response.data.data;
+  },
+
+  addHoneyType: async (
+    honey: { name: string; description?: string; price?: number | null; unit?: string; available?: boolean }
+  ) => {
+    const response = await apiClient.post<{ success: boolean }>(
+      '/api/beekeepers/honey-types',
+      honey
+    );
+    return response.data;
+  },
+
+  updateHoneyType: async (
+    honeyTypeId: string,
+    honey: { name?: string; description?: string; price?: number | null; unit?: string; available?: boolean }
+  ) => {
+    const response = await apiClient.put<{ success: boolean }>(
+      `/api/beekeepers/honey-types/${honeyTypeId}`,
+      honey
+    );
+    return response.data;
+  },
+
+  deleteHoneyType: async (honeyTypeId: string) => {
+    const response = await apiClient.delete<{ success: boolean }>(
+      `/api/beekeepers/honey-types/${honeyTypeId}`
+    );
+    return response.data;
+  },
 };
