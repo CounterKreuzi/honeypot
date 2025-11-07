@@ -693,6 +693,12 @@ export const registerComplete = async (req: Request, res: Response): Promise<voi
       ? companyName.trim()
       : [firstName, lastName].filter(Boolean).join(' ') || name;
 
+    const activeFlag =
+      typeof initialLatitude === 'number' &&
+      typeof initialLongitude === 'number' &&
+      initialLatitude !== 0 &&
+      initialLongitude !== 0;
+
     const beekeeper = beekeeperRepository.create({
       user,
       name: resolvedName,
@@ -705,7 +711,7 @@ export const registerComplete = async (req: Request, res: Response): Promise<voi
       phone: phoneCustomer || null,
       customerPhone: phoneCustomer || null,
       adminPhone: phoneAdmin || null,
-      isActive: false,
+      isActive: activeFlag,
       latitude: initialLatitude,
       longitude: initialLongitude,
       address: initialAddress,
