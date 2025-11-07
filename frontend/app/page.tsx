@@ -11,6 +11,7 @@ import MapModal from '@/components/modals/MapModal';
 import BeekeeperDetailModal from '@/components/modals/BeekeeperDetailModal';
 import { Loader2, SlidersHorizontal } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface Filters {
   honeyTypes: string[];
@@ -27,6 +28,7 @@ interface UserLocation {
 }
 
 export default function Home() {
+  const router = useRouter();
   const {
     beekeepers,
     setBeekeepers,
@@ -50,12 +52,29 @@ export default function Home() {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   const [sortBy, setSortBy] = useState<'distance' | 'name' | 'price'>('distance');
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   // Initial load - alle Imker ohne Location
   useEffect(() => {
     loadBeekeepers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Check auth state for header
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('token');
+      setIsLoggedIn(Boolean(token));
+    }
+  }, []);
+
+  const handleLogout = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('token');
+      setIsLoggedIn(false);
+      router.push('/');
+    }
+  };
 
   const loadBeekeepers = async () => {
     try {
@@ -250,12 +269,28 @@ export default function Home() {
 
             {/* Auth Buttons */}
             <div className="hidden md:flex items-center gap-3">
-              <Link href="/imker-werden" className="px-4 py-2 text-white hover:bg-white/10 rounded-lg transition-colors font-medium">
-                Imker werden
-              </Link>
-              <Link href="/login" className="px-4 py-2 bg-white text-amber-600 hover:bg-amber-50 rounded-lg transition-colors font-semibold">
-                Anmelden
-              </Link>
+              {isLoggedIn ? (
+                <>
+                  <Link href="/meinbereich" className="px-4 py-2 text-white hover:bg-white/10 rounded-lg transition-colors font-medium">
+                    Mein Bereich
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    className="px-4 py-2 bg-white text-amber-600 hover:bg-amber-50 rounded-lg transition-colors font-semibold"
+                  >
+                    Ausloggen
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link href="/imker-werden" className="px-4 py-2 text-white hover:bg-white/10 rounded-lg transition-colors font-medium">
+                    Imker werden
+                  </Link>
+                  <Link href="/login" className="px-4 py-2 bg-white text-amber-600 hover:bg-amber-50 rounded-lg transition-colors font-semibold">
+                    Anmelden
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </div>

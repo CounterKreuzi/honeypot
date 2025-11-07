@@ -29,4 +29,20 @@ export const authApi = {
     const response = await apiClient.get('/api/auth/profile');
     return response.data;
   },
+
+  requestPasswordReset: async (email: string) => {
+    const response = await apiClient.post<{ success: boolean; message: string }>(
+      '/api/auth/forgot-password',
+      { email }
+    );
+    return response.data;
+  },
+
+  resetPassword: async (token: string, password: string) => {
+    const response = await apiClient.post<{ success: boolean; message: string }>(
+      '/api/auth/reset-password',
+      { token, password }
+    );
+    return response.data;
+  },
 };

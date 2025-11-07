@@ -30,7 +30,7 @@ export default function RegisterBeekeeperPage() {
         if (typeof window !== 'undefined') {
           localStorage.setItem('token', res.data.token);
         }
-        router.push('/');
+        router.push('/meinbereich');
       } else {
         setError(res?.message || 'Registrierung fehlgeschlagen');
       }
@@ -138,4 +138,3 @@ export default function RegisterBeekeeperPage() {
     </main>
   );
 }
-
