@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { authApi } from '@/lib/api/auth';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 
-export default function ResetPasswordPage() {
+function ResetPasswordInner() {
   const params = useSearchParams();
   const router = useRouter();
   const token = params.get('token') || '';
@@ -39,7 +39,6 @@ export default function ResetPasswordPage() {
       setLoading(true);
       const res = await authApi.resetPassword(token, password);
       setMessage(res?.message || 'Passwort wurde zurückgesetzt.');
-      // Optional: Auto-redirect to login after a short delay
       setTimeout(() => router.push('/login'), 1500);
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Zurücksetzen fehlgeschlagen.');
@@ -96,3 +95,10 @@ export default function ResetPasswordPage() {
   );
 }
 
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Lade…</div>}>
+      <ResetPasswordInner />
+    </Suspense>
+  );
+}

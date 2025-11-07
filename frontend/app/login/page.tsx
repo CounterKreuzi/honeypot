@@ -70,12 +70,17 @@ export default function LoginPage() {
             {loading ? 'Anmelden...' : 'Anmelden'}
           </button>
         </form>
-        <p className="text-sm text-gray-600 mt-4">
-          Noch kein Konto?{' '}
-          <Link className="text-amber-700 hover:underline" href="/imker-werden">
-            Imker werden
+        <div className="flex items-center justify-between text-sm text-gray-600 mt-4">
+          <Link className="text-amber-700 hover:underline" href="/passwort-vergessen">
+            Passwort vergessen?
           </Link>
-        </p>
+          <span>
+            Noch kein Konto?{' '}
+            <Link className="text-amber-700 hover:underline" href="/imker-werden">
+              Imker werden
+            </Link>
+          </span>
+        </div>
       </div>
     </main>
   );
