@@ -2,6 +2,13 @@ import { apiClient } from './client';
 import { AuthResponse } from '@/types/api';
 
 export const authApi = {
+  registerIntent: async (email: string) => {
+    const response = await apiClient.post<{ success: boolean; message: string }>(
+      '/api/auth/register-intent',
+      { email }
+    );
+    return response.data;
+  },
   register: async (
     email: string,
     password: string,
