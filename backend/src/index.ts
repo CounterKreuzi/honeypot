@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import dns from 'dns';
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -7,6 +8,12 @@ import authRoutes from './routes/auth.routes';
 import beekeeperRoutes from './routes/beekeeper.routes';
 
 dotenv.config();
+
+// Prefer IPv4 first to avoid ENETUNREACH with IPv6-only resolutions in some hosts
+try {
+  dns.setDefaultResultOrder('ipv4first');
+  console.log('🌐 DNS default result order set to ipv4first');
+} catch {}
 
 const app = express();
 const PORT = process.env.PORT || 5000;
