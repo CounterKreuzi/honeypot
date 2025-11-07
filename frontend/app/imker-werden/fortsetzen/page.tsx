@@ -51,9 +51,9 @@ function ContinueRegistrationInner() {
         password,
         companyName || `${firstName} ${lastName}`.trim(),
         {
-          address: address || undefined,
-          city: city || undefined,
-          postalCode: postalCode || undefined,
+          address,
+          city,
+          postalCode,
           salutation,
           firstName,
           lastName,
@@ -65,9 +65,12 @@ function ContinueRegistrationInner() {
         }
       );
       if (res?.success) {
-        setMessage(res.message || 'Registrierung erfolgreich! Du kannst dich jetzt anmelden.');
-        // Optional nach kurzer Zeit zur Login-Seite
-        setTimeout(() => router.push('/login'), 2000);
+        setMessage(res.message || 'Registrierung erfolgreich!');
+        // Automatisch einloggen und zum Profil leiten
+        if (typeof window !== 'undefined' && res?.data?.token) {
+          localStorage.setItem('token', res.data.token);
+        }
+        setTimeout(() => router.push('/meinbereich'), 800);
       } else {
         setError(res?.message || 'Registrierung konnte nicht abgeschlossen werden');
       }
@@ -178,40 +181,38 @@ function ContinueRegistrationInner() {
               className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
             />
           </div>
-          <details className="rounded border border-amber-200 p-3 bg-amber-50">
-            <summary className="cursor-pointer text-sm text-amber-800">Optionale Adressangaben</summary>
-            <div className="mt-3 space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Adresse</label>
-                <input
-                  type="text"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">PLZ</label>
-                  <input
-                    type="text"
-                    value={postalCode}
-                    onChange={(e) => setPostalCode(e.target.value)}
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Ort</label>
-                  <input
-                    type="text"
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  />
-                </div>
-              </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Adresse*</label>
+            <input
+              type="text"
+              required
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">PLZ*</label>
+              <input
+                type="text"
+                required
+                value={postalCode}
+                onChange={(e) => setPostalCode(e.target.value)}
+                className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+              />
             </div>
-          </details>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Ort*</label>
+              <input
+                type="text"
+                required
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+              />
+            </div>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700">Passwort*</label>

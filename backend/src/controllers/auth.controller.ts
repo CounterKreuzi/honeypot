@@ -638,6 +638,12 @@ export const registerComplete = async (req: Request, res: Response): Promise<voi
       return;
     }
 
+    // Require address data to be present
+    if (!address || !city || !postalCode) {
+      res.status(400).json({ success: false, message: 'Adresse, Ort und PLZ sind erforderlich' });
+      return;
+    }
+
     const intent = await registrationIntentRepository.findOne({ where: { token } });
     if (!intent) {
       res.status(400).json({ success: false, message: 'Ungültiger oder abgelaufener Token' });
@@ -713,10 +719,14 @@ export const registerComplete = async (req: Request, res: Response): Promise<voi
       await registrationIntentRepository.remove(intent);
     } catch {}
 
+    // Create auth token for immediate login
+    const tokenJwt = generateToken({ userId: user.id, email: user.email, role: user.role });
+
     res.json({
       success: true,
-      message: 'Registrierung erfolgreich! Du kannst dich jetzt anmelden.',
+      message: 'Registrierung erfolgreich! Willkommen bei Honeypot.',
       data: {
+        token: tokenJwt,
         user: { id: user.id, email: user.email, role: user.role, isVerified: user.isVerified },
         beekeeper: { id: beekeeper.id, name: beekeeper.name, isActive: beekeeper.isActive },
       },
