@@ -8,6 +8,8 @@ import {
   resendVerificationEmail,
   requestPasswordReset,
   resetPassword,
+  registerIntent,
+  registerComplete,
 } from '../controllers/auth.controller';
 import { authenticate } from '../middleware/auth';
 
@@ -18,6 +20,8 @@ const router = Router();
 // ============================================================================
 
 router.post('/register', register);
+router.post('/register-intent', registerIntent);
+router.post('/register-complete', registerComplete);
 router.post('/login', login);
 
 // 🆕 E-Mail Verifizierung

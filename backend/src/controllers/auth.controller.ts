@@ -3,6 +3,7 @@ import { Request, Response } from 'express';
 import crypto from 'crypto';
 import { AppDataSource } from '../config/database';
 import { User } from '../entities/User';
+import { RegistrationIntent } from '../entities/RegistrationIntent';
 import { Beekeeper } from '../entities/Beekeeper';
 import { hashPassword, comparePassword } from '../utils/password';
 import { generateToken } from '../utils/jwt';
@@ -12,6 +13,7 @@ import { emailService } from '../services/email.service';
 
 const userRepository = AppDataSource.getRepository(User);
 const beekeeperRepository = AppDataSource.getRepository(Beekeeper);
+const registrationIntentRepository = AppDataSource.getRepository(RegistrationIntent);
 
 // ============================================================================
 // GEOCODING HELPER
@@ -568,5 +570,140 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
       success: false,
       message: 'Fehler beim Zurücksetzen des Passworts',
     });
+  }
+};
+
+// ============================================================================
+// REGISTRATION INTENT (Option B)
+// ============================================================================
+
+export const registerIntent = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const email: string | undefined = req.body?.email;
+    if (!email) {
+      res.status(400).json({ success: false, message: 'E-Mail-Adresse fehlt' });
+      return;
+    }
+
+    // Create or update intent with new token valid for 24h
+    const token = generateVerificationToken();
+    const expires = new Date();
+    expires.setHours(expires.getHours() + 24);
+
+    let intent = await registrationIntentRepository.findOne({ where: { email } });
+    if (!intent) {
+      intent = registrationIntentRepository.create({ email, token, tokenExpiresAt: expires });
+    } else {
+      intent.token = token;
+      intent.tokenExpiresAt = expires;
+    }
+    await registrationIntentRepository.save(intent);
+
+    try {
+      await emailService.sendRegistrationIntentEmail(email, token);
+    } catch (e) {
+      // Do not reveal details to client; log on server
+      console.error('Registration intent email failed:', e);
+    }
+
+    // Always generic response (prevents email enumeration)
+    res.json({ success: true, message: 'Wenn diese E-Mail existiert, senden wir dir einen Bestätigungslink.' });
+  } catch (error) {
+    console.error('Register intent error:', error);
+    res.status(500).json({ success: false, message: 'Fehler beim Anfordern des Registrierungslinks' });
+  }
+};
+
+export const registerComplete = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { token, password, name, address, city, postalCode } = req.body || {};
+
+    if (!token || !password || !name) {
+      res.status(400).json({ success: false, message: 'Token, Passwort und Name sind erforderlich' });
+      return;
+    }
+
+    const intent = await registrationIntentRepository.findOne({ where: { token } });
+    if (!intent) {
+      res.status(400).json({ success: false, message: 'Ungültiger oder abgelaufener Token' });
+      return;
+    }
+    if (intent.tokenExpiresAt < new Date()) {
+      res.status(400).json({ success: false, message: 'Token ist abgelaufen' });
+      return;
+    }
+
+    // If user already exists for that email, abort politely
+    const existingUser = await userRepository.findOne({ where: { email: intent.email } });
+    if (existingUser) {
+      res.status(400).json({ success: false, message: 'Es existiert bereits ein Benutzer mit dieser E-Mail' });
+      return;
+    }
+
+    const hashedPassword = await hashPassword(password);
+
+    // Create verification token for email verification after account creation
+    const verificationToken = generateVerificationToken();
+    const verificationTokenExpires = new Date();
+    verificationTokenExpires.setHours(verificationTokenExpires.getHours() + 24);
+
+    const user = userRepository.create({
+      email: intent.email,
+      password: hashedPassword,
+      role: 'beekeeper',
+      isVerified: false,
+      verificationToken,
+      verificationTokenExpires,
+    });
+    await userRepository.save(user);
+
+    // Initial beekeeper profile
+    let initialLatitude = 48.2082;
+    let initialLongitude = 16.3738;
+    let initialAddress = '';
+
+    // Optional geocode, if address info provided
+    if (address || city || postalCode) {
+      const coords = await geocodeAddress(address || '', city, postalCode);
+      if (coords) {
+        initialLatitude = coords.latitude;
+        initialLongitude = coords.longitude;
+        initialAddress = [address, postalCode, city].filter(Boolean).join(', ');
+      }
+    }
+
+    const beekeeper = beekeeperRepository.create({
+      user,
+      name,
+      isActive: false,
+      latitude: initialLatitude,
+      longitude: initialLongitude,
+      address: initialAddress,
+    });
+    await beekeeperRepository.save(beekeeper);
+
+    // Remove intent after successful completion (single-use)
+    try {
+      await registrationIntentRepository.remove(intent);
+    } catch {}
+
+    // Send verification email (same behavior as regular register)
+    try {
+      await emailService.sendWelcomeEmail(user.email, name, verificationToken);
+    } catch (emailError) {
+      console.error('Willkommens-E-Mail konnte nicht gesendet werden:', emailError);
+    }
+
+    res.json({
+      success: true,
+      message: 'Registrierung erfolgreich! Bitte bestätige deine E-Mail-Adresse.',
+      data: {
+        user: { id: user.id, email: user.email, role: user.role, isVerified: user.isVerified },
+        beekeeper: { id: beekeeper.id, name: beekeeper.name, isActive: beekeeper.isActive },
+      },
+    });
+  } catch (error) {
+    console.error('Register complete error:', error);
+    res.status(500).json({ success: false, message: 'Fehler beim Abschluss der Registrierung' });
   }
 };

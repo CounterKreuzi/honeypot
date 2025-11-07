@@ -283,6 +283,60 @@ function getProfileActivatedEmailTemplate(name: string): string {
 
 export const emailService = {
   /**
+   * Sendet E-Mail, um die Registrierung fortzusetzen (Intent-Link)
+   */
+  async sendRegistrationIntentEmail(email: string, token: string): Promise<void> {
+    const continueLink = `${FRONTEND_URL}/imker-werden/fortsetzen?token=${token}`;
+    const html = `
+      <!DOCTYPE html>
+      <html lang="de">
+      <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Registrierung fortsetzen</title>
+      </head>
+      <body style="margin:0;padding:0;font-family:Arial,sans-serif;background-color:#fef3c7;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#fef3c7;padding:20px 0;">
+          <tr>
+            <td align="center">
+              <table width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+                <tr>
+                  <td style="padding:40px 40px 20px;text-align:center;background:linear-gradient(135deg,#f59e0b,#d97706);border-radius:12px 12px 0 0;">
+                    <h1 style="color:#ffffff;margin:0;font-size:28px;">🍯 Honeypot</h1>
+                    <p style="color:#fef3c7;margin:10px 0 0;font-size:16px;">Registrierung fortsetzen</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:36px;">
+                    <p style="color:#1f2937;line-height:1.6;margin:0 0 16px;">Hallo!</p>
+                    <p style="color:#4b5563;line-height:1.6;margin:0 0 16px;">
+                      Du hast begonnen, dich bei Honeypot zu registrieren. Klicke auf den Button, um die Registrierung fortzusetzen und dein Passwort festzulegen.
+                    </p>
+                    <table width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;">
+                      <tr>
+                        <td align="center">
+                          <a href="${continueLink}" style="display:inline-block;padding:14px 28px;background-color:#d97706;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:bold;font-size:16px;">Registrierung fortsetzen</a>
+                        </td>
+                      </tr>
+                    </table>
+                    <p style="color:#6b7280;font-size:12px;margin:24px 0 0;">Dieser Link ist 24 Stunden gültig.</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:16px;text-align:center;background-color:#fef3c7;border-radius:0 0 12px 12px;">
+                    <p style="color:#78716c;font-size:12px;margin:0;">© 2024 Honeypot Imkerplattform | <a href="${FRONTEND_URL}" style="color:#d97706;">honig.stefankreuzhuber.com</a></p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
+    `;
+    await sendEmail(email, 'Deine Registrierung bei Honeypot – weiter geht’s', html);
+  },
+  /**
    * Sendet Willkommens-E-Mail mit Verifizierungslink
    */
   async sendWelcomeEmail(email: string, name: string, verificationToken: string): Promise<void> {
