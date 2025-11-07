@@ -10,6 +10,7 @@ import LocationSearch from '@/components/location/LocationSearch';
 import MapModal from '@/components/modals/MapModal';
 import BeekeeperDetailModal from '@/components/modals/BeekeeperDetailModal';
 import { Loader2, SlidersHorizontal } from 'lucide-react';
+import Link from 'next/link';
 
 interface Filters {
   honeyTypes: string[];
@@ -249,12 +250,12 @@ export default function Home() {
 
             {/* Auth Buttons */}
             <div className="hidden md:flex items-center gap-3">
-              <button className="px-4 py-2 text-white hover:bg-white/10 rounded-lg transition-colors font-medium">
+              <Link href="/imker-werden" className="px-4 py-2 text-white hover:bg-white/10 rounded-lg transition-colors font-medium">
                 Imker werden
-              </button>
-              <button className="px-4 py-2 bg-white text-amber-600 hover:bg-amber-50 rounded-lg transition-colors font-semibold">
+              </Link>
+              <Link href="/login" className="px-4 py-2 bg-white text-amber-600 hover:bg-amber-50 rounded-lg transition-colors font-semibold">
                 Anmelden
-              </button>
+              </Link>
             </div>
           </div>
         </div>
