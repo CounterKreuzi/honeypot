@@ -1,4 +1,6 @@
+// backend/src/controllers/auth.controller.ts
 import { Request, Response } from 'express';
+import crypto from 'crypto';
 import { AppDataSource } from '../config/database';
 import { User } from '../entities/User';
 import { Beekeeper } from '../entities/Beekeeper';
@@ -6,6 +8,7 @@ import { hashPassword, comparePassword } from '../utils/password';
 import { generateToken } from '../utils/jwt';
 import { registerSchema, loginSchema } from '../utils/validation';
 import { AuthRequest } from '../middleware/auth';
+import { emailService } from '../services/email.service';
 
 const userRepository = AppDataSource.getRepository(User);
 const beekeeperRepository = AppDataSource.getRepository(Beekeeper);
@@ -68,6 +71,14 @@ async function geocodeAddress(
 }
 
 // ============================================================================
+// HELPER: TOKEN GENERATOR
+// ============================================================================
+
+function generateVerificationToken(): string {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+// ============================================================================
 // AUTH ROUTES
 // ============================================================================
 
@@ -95,11 +106,18 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 
     const hashedPassword = await hashPassword(password);
 
+    // 🆕 Verifizierungs-Token generieren
+    const verificationToken = generateVerificationToken();
+    const verificationTokenExpires = new Date();
+    verificationTokenExpires.setHours(verificationTokenExpires.getHours() + 24); // 24 Stunden gültig
+
     const user = userRepository.create({
       email,
       password: hashedPassword,
       role: 'beekeeper',
       isVerified: false,
+      verificationToken,
+      verificationTokenExpires,
     });
 
     await userRepository.save(user);
@@ -142,6 +160,15 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 
     await beekeeperRepository.save(beekeeper);
 
+    // 🆕 Willkommens-E-Mail mit Verifizierungslink senden
+    try {
+      await emailService.sendWelcomeEmail(email, name, verificationToken);
+      console.log(`✅ Willkommens-E-Mail gesendet an ${email}`);
+    } catch (emailError) {
+      console.error('⚠️ E-Mail konnte nicht gesendet werden:', emailError);
+      // Registrierung trotzdem erfolgreich, E-Mail-Fehler nicht blockieren
+    }
+
     const token = generateToken({
       userId: user.id,
       email: user.email,
@@ -150,7 +177,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 
     res.status(201).json({
       success: true,
-      message: 'Registrierung erfolgreich',
+      message: 'Registrierung erfolgreich! Bitte bestätige deine E-Mail-Adresse.',
       data: {
         token,
         user: {
@@ -226,6 +253,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
           id: user.id,
           email: user.email,
           role: user.role,
+          isVerified: user.isVerified,
         },
         beekeeper: beekeeper
           ? {
@@ -293,6 +321,252 @@ export const getProfile = async (
     res.status(500).json({
       success: false,
       message: 'Fehler beim Laden des Profils',
+    });
+  }
+};
+
+// ============================================================================
+// 🆕 E-MAIL VERIFIZIERUNG
+// ============================================================================
+
+export const verifyEmail = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { token } = req.body;
+
+    if (!token) {
+      res.status(400).json({
+        success: false,
+        message: 'Verifizierungs-Token fehlt',
+      });
+      return;
+    }
+
+    const user = await userRepository.findOne({
+      where: { verificationToken: token },
+    });
+
+    if (!user) {
+      res.status(400).json({
+        success: false,
+        message: 'Ungültiger oder abgelaufener Verifizierungs-Token',
+      });
+      return;
+    }
+
+    // Token-Ablauf prüfen
+    if (user.verificationTokenExpires && user.verificationTokenExpires < new Date()) {
+      res.status(400).json({
+        success: false,
+        message: 'Verifizierungs-Token ist abgelaufen',
+      });
+      return;
+    }
+
+    // E-Mail verifizieren
+    user.isVerified = true;
+    user.verificationToken = null;
+    user.verificationTokenExpires = null;
+    await userRepository.save(user);
+
+    res.json({
+      success: true,
+      message: 'E-Mail erfolgreich verifiziert! Du kannst dich jetzt anmelden.',
+    });
+  } catch (error) {
+    console.error('Verify email error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Fehler bei der E-Mail-Verifizierung',
+    });
+  }
+};
+
+export const resendVerificationEmail = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        message: 'Authentifizierung erforderlich',
+      });
+      return;
+    }
+
+    const user = await userRepository.findOne({ where: { id: userId } });
+
+    if (!user) {
+      res.status(404).json({
+        success: false,
+        message: 'Benutzer nicht gefunden',
+      });
+      return;
+    }
+
+    if (user.isVerified) {
+      res.status(400).json({
+        success: false,
+        message: 'E-Mail ist bereits verifiziert',
+      });
+      return;
+    }
+
+    const beekeeper = await beekeeperRepository.findOne({
+      where: { user: { id: userId } },
+    });
+
+    // Neuen Token generieren
+    const verificationToken = generateVerificationToken();
+    const verificationTokenExpires = new Date();
+    verificationTokenExpires.setHours(verificationTokenExpires.getHours() + 24);
+
+    user.verificationToken = verificationToken;
+    user.verificationTokenExpires = verificationTokenExpires;
+    await userRepository.save(user);
+
+    // E-Mail erneut senden
+    await emailService.sendWelcomeEmail(
+      user.email,
+      beekeeper?.name || 'Imker',
+      verificationToken
+    );
+
+    res.json({
+      success: true,
+      message: 'Verifizierungs-E-Mail wurde erneut gesendet',
+    });
+  } catch (error) {
+    console.error('Resend verification error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Fehler beim Senden der Verifizierungs-E-Mail',
+    });
+  }
+};
+
+// ============================================================================
+// 🆕 PASSWORT ZURÜCKSETZEN
+// ============================================================================
+
+export const requestPasswordReset = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      res.status(400).json({
+        success: false,
+        message: 'E-Mail-Adresse fehlt',
+      });
+      return;
+    }
+
+    const user = await userRepository.findOne({ where: { email } });
+
+    // 🔐 Sicherheit: Immer gleiche Antwort (verhindert E-Mail-Enumeration)
+    const successMessage = 'Falls ein Konto mit dieser E-Mail existiert, wurde ein Passwort-Reset-Link gesendet.';
+
+    if (!user) {
+      res.json({ success: true, message: successMessage });
+      return;
+    }
+
+    const beekeeper = await beekeeperRepository.findOne({
+      where: { user: { id: user.id } },
+    });
+
+    // Reset-Token generieren
+    const resetToken = generateVerificationToken();
+    const resetTokenExpires = new Date();
+    resetTokenExpires.setHours(resetTokenExpires.getHours() + 1); // 1 Stunde gültig
+
+    user.resetPasswordToken = resetToken;
+    user.resetPasswordTokenExpires = resetTokenExpires;
+    await userRepository.save(user);
+
+    // E-Mail senden
+    try {
+      await emailService.sendPasswordResetEmail(
+        email,
+        beekeeper?.name || 'Imker',
+        resetToken
+      );
+    } catch (emailError) {
+      console.error('⚠️ Password reset email failed:', emailError);
+    }
+
+    res.json({ success: true, message: successMessage });
+  } catch (error) {
+    console.error('Request password reset error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Fehler bei der Passwort-Reset-Anfrage',
+    });
+  }
+};
+
+export const resetPassword = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { token, password } = req.body;
+
+    if (!token || !password) {
+      res.status(400).json({
+        success: false,
+        message: 'Token und neues Passwort sind erforderlich',
+      });
+      return;
+    }
+
+    if (password.length < 8) {
+      res.status(400).json({
+        success: false,
+        message: 'Passwort muss mindestens 8 Zeichen lang sein',
+      });
+      return;
+    }
+
+    const user = await userRepository.findOne({
+      where: { resetPasswordToken: token },
+    });
+
+    if (!user) {
+      res.status(400).json({
+        success: false,
+        message: 'Ungültiger oder abgelaufener Reset-Token',
+      });
+      return;
+    }
+
+    // Token-Ablauf prüfen
+    if (user.resetPasswordTokenExpires && user.resetPasswordTokenExpires < new Date()) {
+      res.status(400).json({
+        success: false,
+        message: 'Reset-Token ist abgelaufen',
+      });
+      return;
+    }
+
+    // Neues Passwort setzen
+    const hashedPassword = await hashPassword(password);
+    user.password = hashedPassword;
+    user.resetPasswordToken = null;
+    user.resetPasswordTokenExpires = null;
+    await userRepository.save(user);
+
+    res.json({
+      success: true,
+      message: 'Passwort erfolgreich geändert! Du kannst dich jetzt anmelden.',
+    });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Fehler beim Zurücksetzen des Passworts',
     });
   }
 };
