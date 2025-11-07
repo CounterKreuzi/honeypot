@@ -13,7 +13,19 @@ export const authApi = {
     token: string,
     password: string,
     name: string,
-    opts?: { address?: string; city?: string; postalCode?: string }
+    opts?: {
+      address?: string;
+      city?: string;
+      postalCode?: string;
+      salutation?: string;
+      firstName?: string;
+      lastName?: string;
+      companyName?: string;
+      shortDescription?: string;
+      website?: string;
+      phoneCustomer?: string;
+      phoneAdmin?: string;
+    }
   ) => {
     const response = await apiClient.post<{ success: boolean; message: string; data?: any }>(
       '/api/auth/register-complete',

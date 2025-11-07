@@ -616,7 +616,22 @@ export const registerIntent = async (req: Request, res: Response): Promise<void>
 
 export const registerComplete = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { token, password, name, address, city, postalCode } = req.body || {};
+    const {
+      token,
+      password,
+      name,
+      address,
+      city,
+      postalCode,
+      salutation,
+      firstName,
+      lastName,
+      companyName,
+      shortDescription,
+      website,
+      phoneCustomer,
+      phoneAdmin,
+    } = req.body || {};
 
     if (!token || !password || !name) {
       res.status(400).json({ success: false, message: 'Token, Passwort und Name sind erforderlich' });
@@ -642,18 +657,14 @@ export const registerComplete = async (req: Request, res: Response): Promise<voi
 
     const hashedPassword = await hashPassword(password);
 
-    // Create verification token for email verification after account creation
-    const verificationToken = generateVerificationToken();
-    const verificationTokenExpires = new Date();
-    verificationTokenExpires.setHours(verificationTokenExpires.getHours() + 24);
-
+    // No second email verification required: mark as verified directly
     const user = userRepository.create({
       email: intent.email,
       password: hashedPassword,
       role: 'beekeeper',
-      isVerified: false,
-      verificationToken,
-      verificationTokenExpires,
+      isVerified: true,
+      verificationToken: null,
+      verificationTokenExpires: null,
     });
     await userRepository.save(user);
 
@@ -672,13 +683,28 @@ export const registerComplete = async (req: Request, res: Response): Promise<voi
       }
     }
 
+    const resolvedName = companyName?.trim()
+      ? companyName.trim()
+      : [firstName, lastName].filter(Boolean).join(' ') || name;
+
     const beekeeper = beekeeperRepository.create({
       user,
-      name,
+      name: resolvedName,
+      salutation: salutation || null,
+      firstName: firstName || null,
+      lastName: lastName || null,
+      companyName: companyName || null,
+      description: shortDescription || null,
+      website: website || null,
+      phone: phoneCustomer || null,
+      customerPhone: phoneCustomer || null,
+      adminPhone: phoneAdmin || null,
       isActive: false,
       latitude: initialLatitude,
       longitude: initialLongitude,
       address: initialAddress,
+      city: city || null,
+      postalCode: postalCode || null,
     });
     await beekeeperRepository.save(beekeeper);
 
@@ -687,16 +713,9 @@ export const registerComplete = async (req: Request, res: Response): Promise<voi
       await registrationIntentRepository.remove(intent);
     } catch {}
 
-    // Send verification email (same behavior as regular register)
-    try {
-      await emailService.sendWelcomeEmail(user.email, name, verificationToken);
-    } catch (emailError) {
-      console.error('Willkommens-E-Mail konnte nicht gesendet werden:', emailError);
-    }
-
     res.json({
       success: true,
-      message: 'Registrierung erfolgreich! Bitte bestätige deine E-Mail-Adresse.',
+      message: 'Registrierung erfolgreich! Du kannst dich jetzt anmelden.',
       data: {
         user: { id: user.id, email: user.email, role: user.role, isVerified: user.isVerified },
         beekeeper: { id: beekeeper.id, name: beekeeper.name, isActive: beekeeper.isActive },

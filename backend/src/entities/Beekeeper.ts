@@ -23,6 +23,19 @@ export class Beekeeper {
   @Column()
   name: string;
 
+  // Stammdaten (optional detailliert)
+  @Column({ nullable: true })
+  salutation?: string; // Herr | Frau | Divers
+
+  @Column({ nullable: true })
+  firstName?: string;
+
+  @Column({ nullable: true })
+  lastName?: string;
+
+  @Column({ nullable: true })
+  companyName?: string;
+
   @Column({ type: 'text', nullable: true })
   description?: string;
 
@@ -54,6 +67,13 @@ export class Beekeeper {
   // Kontakt
   @Column({ nullable: true })
   phone?: string;
+
+  // Neues Schema: getrennte Rufnummern
+  @Column({ nullable: true })
+  customerPhone?: string;
+
+  @Column({ nullable: true })
+  adminPhone?: string;
 
   @Column({ nullable: true })
   website?: string;
