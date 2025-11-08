@@ -17,7 +17,6 @@ function ContinueRegistrationInner() {
   const [shortDescription, setShortDescription] = useState('');
   const [website, setWebsite] = useState('');
   const [phoneCustomer, setPhoneCustomer] = useState('');
-  const [phoneAdmin, setPhoneAdmin] = useState('');
   const [password, setPassword] = useState('');
   const [password2, setPassword2] = useState('');
   const [address, setAddress] = useState('');
@@ -64,7 +63,6 @@ function ContinueRegistrationInner() {
           shortDescription,
           website,
           phoneCustomer,
-          phoneAdmin,
         }
       );
       if (res?.success) {
@@ -85,7 +83,7 @@ function ContinueRegistrationInner() {
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 to-yellow-50 px-4">
-      <div className="w-full max-w-2xl bg-white shadow-lg rounded-xl p-6 md:p-8">
+      <div className="w-full max-w-2xl md:max-w-3xl xl:max-w-4xl bg-white shadow-lg rounded-xl p-6 md:p-8">
         <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-1">Imker-Profil anlegen</h1>
         <p className="text-sm text-gray-600 mb-6">Bitte vervollständige deine Stammdaten.</p>
 
@@ -100,7 +98,7 @@ function ContinueRegistrationInner() {
           {/* Abschnitt: Zugangsdaten */}
           <fieldset className="space-y-3">
             <legend className="text-sm font-semibold text-gray-900">Zugangsdaten</legend>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               <div>
                 <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700">Passwort*</label>
                 <div className="relative mt-1">
@@ -157,7 +155,7 @@ function ContinueRegistrationInner() {
           {/* Abschnitt: Stammdaten */}
           <fieldset className="space-y-4">
             <legend className="text-sm font-semibold text-gray-900">Stammdaten</legend>
-            <div className="grid grid-cols-3 gap-3 md:grid-cols-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
               <div>
                 <label htmlFor="salutation" className="block text-sm font-medium text-gray-700">Anrede*</label>
                 <select
@@ -226,7 +224,7 @@ function ContinueRegistrationInner() {
               />
               <div className="text-right text-xs text-gray-500">{shortDescription.length}/200</div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               <div>
                 <label htmlFor="website" className="block text-sm font-medium text-gray-700">Website</label>
                 <input
@@ -253,18 +251,7 @@ function ContinueRegistrationInner() {
                 />
               </div>
             </div>
-            <div>
-              <label htmlFor="phoneAdmin" className="block text-sm font-medium text-gray-700">Telefon für Organisatorisches (optional)</label>
-              <input
-                type="tel"
-                id="phoneAdmin"
-                name="phoneAdmin"
-                autoComplete="tel"
-                value={phoneAdmin}
-                onChange={(e) => setPhoneAdmin(e.target.value)}
-                className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
-              />
-            </div>
+            
             <div>
               <label htmlFor="address" className="block text-sm font-medium text-gray-700">Adresse*</label>
               <input
@@ -278,7 +265,7 @@ function ContinueRegistrationInner() {
                 className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
               />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               <div>
                 <label htmlFor="postalCode" className="block text-sm font-medium text-gray-700">PLZ*</label>
                 <input
@@ -340,4 +327,3 @@ export default function ContinueRegistrationPage() {
     </Suspense>
   );
 }
-
