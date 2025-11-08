@@ -32,8 +32,20 @@ export default function BeekeeperCard({ beekeeper, onClick }: BeekeeperCardProps
       if (v == null) return null;
       if (typeof v === 'number' && !isNaN(v)) return v;
       if (typeof v === 'string') {
-        const normalized = v.replace(/\./g, '').replace(',', '.');
-        const n = parseFloat(normalized);
+        const s = v.trim();
+        // If both separators exist, interpret "," as decimal and "." as thousands
+        if (s.includes('.') && s.includes(',')) {
+          const normalized = s.replace(/\./g, '').replace(',', '.');
+          const n = parseFloat(normalized);
+          return isNaN(n) ? null : n;
+        }
+        // If only comma present, treat comma as decimal
+        if (s.includes(',')) {
+          const n = parseFloat(s.replace(',', '.'));
+          return isNaN(n) ? null : n;
+        }
+        // Only dot or plain number, parse directly
+        const n = parseFloat(s);
         return isNaN(n) ? null : n;
       }
       return null;
@@ -128,24 +140,24 @@ export default function BeekeeperCard({ beekeeper, onClick }: BeekeeperCardProps
 
           {/* Price overview by weight */}
           {(min250 != null || min500 != null || min1000 != null) && (
-            <div className="mb-3 space-y-1">
+            <div className="mb-3 text-sm text-gray-700 flex flex-wrap gap-x-4 gap-y-1">
               {min250 != null && (
-                <div className="text-sm text-gray-700">
+                <span>
                   <span className="text-gray-600">250 g ab </span>
                   <span className="font-semibold text-amber-600">€ {formatEuro(min250)}</span>
-                </div>
+                </span>
               )}
               {min500 != null && (
-                <div className="text-sm text-gray-700">
+                <span>
                   <span className="text-gray-600">500 g ab </span>
                   <span className="font-semibold text-amber-600">€ {formatEuro(min500)}</span>
-                </div>
+                </span>
               )}
               {min1000 != null && (
-                <div className="text-sm text-gray-700">
+                <span>
                   <span className="text-gray-600">1000 g ab </span>
                   <span className="font-semibold text-amber-600">€ {formatEuro(min1000)}</span>
-                </div>
+                </span>
               )}
             </div>
           )}

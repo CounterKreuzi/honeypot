@@ -258,8 +258,17 @@ export default function BeekeeperDetailModal({
                         if (v == null) return null;
                         if (typeof v === 'number' && !isNaN(v)) return v;
                         if (typeof v === 'string') {
-                          const normalized = v.replace(/\./g, '').replace(',', '.');
-                          const n = parseFloat(normalized);
+                          const s = v.trim();
+                          if (s.includes('.') && s.includes(',')) {
+                            const normalized = s.replace(/\./g, '').replace(',', '.');
+                            const n = parseFloat(normalized);
+                            return isNaN(n) ? null : n;
+                          }
+                          if (s.includes(',')) {
+                            const n = parseFloat(s.replace(',', '.'));
+                            return isNaN(n) ? null : n;
+                          }
+                          const n = parseFloat(s);
                           return isNaN(n) ? null : n;
                         }
                         return null;
@@ -272,25 +281,27 @@ export default function BeekeeperDetailModal({
                       if (p250 == null && p500 == null && p1000 == null) return null;
 
                       return (
-                        <div className="text-right ml-4 space-y-0.5">
-                          {p250 != null && (
-                            <div className="text-sm text-gray-700">
-                              <span className="text-gray-600">250 g – </span>
-                              <span className="font-semibold text-amber-700">{formatEuro(p250)} €</span>
-                            </div>
-                          )}
-                          {p500 != null && (
-                            <div className="text-sm text-gray-700">
-                              <span className="text-gray-600">500 g – </span>
-                              <span className="font-semibold text-amber-700">{formatEuro(p500)} €</span>
-                            </div>
-                          )}
-                          {p1000 != null && (
-                            <div className="text-sm text-gray-700">
-                              <span className="text-gray-600">1000 g – </span>
-                              <span className="font-semibold text-amber-700">{formatEuro(p1000)} €</span>
-                            </div>
-                          )}
+                        <div className="text-right ml-4">
+                          <div className="flex flex-wrap justify-end gap-x-3 gap-y-1 text-sm text-gray-700">
+                            {p250 != null && (
+                              <span>
+                                <span className="text-gray-600">250 g – </span>
+                                <span className="font-semibold text-amber-700">{formatEuro(p250)} €</span>
+                              </span>
+                            )}
+                            {p500 != null && (
+                              <span>
+                                <span className="text-gray-600">500 g – </span>
+                                <span className="font-semibold text-amber-700">{formatEuro(p500)} €</span>
+                              </span>
+                            )}
+                            {p1000 != null && (
+                              <span>
+                                <span className="text-gray-600">1000 g – </span>
+                                <span className="font-semibold text-amber-700">{formatEuro(p1000)} €</span>
+                              </span>
+                            )}
+                          </div>
                         </div>
                       );
                     })()}
