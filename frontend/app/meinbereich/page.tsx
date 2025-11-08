@@ -245,9 +245,14 @@ export default function MeinBereichPage() {
               <p className="text-gray-600">{profile.name}</p>
             )}
           </div>
-          <button onClick={logout} className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-md">
-            Abmelden
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => router.push('/')} className="px-3 py-2 text-sm border border-gray-200 bg-white hover:bg-gray-50 rounded-md">
+              Zur Startseite
+            </button>
+            <button onClick={logout} className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-md">
+              Abmelden
+            </button>
+          </div>
         </div>
 
         {error && (
