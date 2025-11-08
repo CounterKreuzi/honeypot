@@ -38,9 +38,19 @@ export default function MeinBereichPage() {
   const [honeyTypes, setHoneyTypes] = useState<HoneyType[]>([]);
   const [newHoneyName, setNewHoneyName] = useState('');
   const [newHoneyDesc, setNewHoneyDesc] = useState('');
-  const [newHoneyPrice, setNewHoneyPrice] = useState('');
-  const [newHoneyUnit, setNewHoneyUnit] = useState('');
+  const [newHoneyPrice250, setNewHoneyPrice250] = useState('');
+  const [newHoneyPrice500, setNewHoneyPrice500] = useState('');
+  const [newHoneyPrice1000, setNewHoneyPrice1000] = useState('');
   const [newHoneyAvailable, setNewHoneyAvailable] = useState(true);
+
+  // Edit honey modal state
+  const [editingHoney, setEditingHoney] = useState<HoneyType | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editDesc, setEditDesc] = useState('');
+  const [editPrice250, setEditPrice250] = useState('');
+  const [editPrice500, setEditPrice500] = useState('');
+  const [editPrice1000, setEditPrice1000] = useState('');
+  const [editAvailable, setEditAvailable] = useState(true);
 
   const isAuthed = useMemo(() => {
     if (typeof window === 'undefined') return false;
@@ -102,20 +112,21 @@ export default function MeinBereichPage() {
     e.preventDefault();
     if (!newHoneyName.trim()) return;
     try {
-      const priceNumber = newHoneyPrice.trim() ? parseFloat(newHoneyPrice) : undefined;
       await beekeepersApi.addHoneyType({
         name: newHoneyName.trim(),
         description: newHoneyDesc || undefined,
-        price: priceNumber ?? null,
-        unit: newHoneyUnit || undefined,
+        price250: newHoneyPrice250.trim() ? parseFloat(newHoneyPrice250) : null,
+        price500: newHoneyPrice500.trim() ? parseFloat(newHoneyPrice500) : null,
+        price1000: newHoneyPrice1000.trim() ? parseFloat(newHoneyPrice1000) : null,
         available: newHoneyAvailable,
       });
       const me = await beekeepersApi.getMyProfile();
       setHoneyTypes(me.honeyTypes || []);
       setNewHoneyName('');
       setNewHoneyDesc('');
-      setNewHoneyPrice('');
-      setNewHoneyUnit('');
+      setNewHoneyPrice250('');
+      setNewHoneyPrice500('');
+      setNewHoneyPrice1000('');
       setNewHoneyAvailable(true);
       setError(null);
     } catch (err: any) {
@@ -297,52 +308,59 @@ export default function MeinBereichPage() {
             )}
           </section>
 
-          {/* Honigsorten */}
+          {/* Honig anlegen */}
           <section className="bg-white rounded-lg shadow p-5">
-            <h2 className="text-lg font-semibold mb-4">Honigsorten</h2>
+            <h2 className="text-lg font-semibold mb-4">Honig anlegen</h2>
             <form className="space-y-3 mb-4" onSubmit={handleAddHoney}>
               <input type="text" placeholder="Honigsorte (z.B. Blütenhonig)" value={newHoneyName} onChange={(e) => setNewHoneyName(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
               <input type="text" placeholder="Beschreibung (optional)" value={newHoneyDesc} onChange={(e) => setNewHoneyDesc(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
-              <div className="grid grid-cols-3 gap-3">
-                <input type="text" placeholder="Preis (z.B. 6.50)" value={newHoneyPrice} onChange={(e) => setNewHoneyPrice(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
-                <input type="text" placeholder="Einheit (z.B. 500g)" value={newHoneyUnit} onChange={(e) => setNewHoneyUnit(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
-                <label className="flex items-center gap-2 text-sm text-gray-700">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <input type="text" inputMode="decimal" placeholder="Preis 250 g (z.B. 4.00)" value={newHoneyPrice250} onChange={(e) => setNewHoneyPrice250(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                <input type="text" inputMode="decimal" placeholder="Preis 500 g (z.B. 6.50)" value={newHoneyPrice500} onChange={(e) => setNewHoneyPrice500(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                <input type="text" inputMode="decimal" placeholder="Preis 1000 g (z.B. 12.00)" value={newHoneyPrice1000} onChange={(e) => setNewHoneyPrice1000(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
+              </div>
+              <div className="mt-2">
+                <label className="inline-flex items-center gap-2 text-sm text-gray-700">
                   <input type="checkbox" checked={newHoneyAvailable} onChange={(e) => setNewHoneyAvailable(e.target.checked)} />
                   verfügbar
                 </label>
               </div>
               <button type="submit" className="w-full px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-md">Hinzufügen</button>
             </form>
+          </section>
+        </div>
 
-            <div className="space-y-2">
-              {honeyTypes.length === 0 && (
-                <div className="text-sm text-gray-600">Noch keine Honigsorten hinzugefügt.</div>
-              )}
+        {/* Bestehende Honigsorten */}
+        <section className="mt-6">
+          {honeyTypes.length === 0 ? (
+            <div className="text-sm text-gray-600">Noch keine Honigsorten hinzugefügt.</div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {honeyTypes.map((h) => (
-                <div key={h.id} className="flex items-center justify-between border border-gray-200 rounded-md p-3">
-                  <div>
-                    <div className="font-medium">{h.name}</div>
-                    {(h.description || h.unit || h.price) && (
-                      <div className="text-sm text-gray-600">
-                        {h.description ? `${h.description} ` : ''}
-                        {h.unit ? `• ${h.unit} ` : ''}
-                        {h.price ? `• ${h.price}€` : ''}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
+                <div key={h.id} className="border border-gray-200 rounded-lg p-4 bg-white shadow-sm">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="font-semibold text-gray-900">{h.name}</div>
+                      {h.description && <div className="text-sm text-gray-600 mt-1">{h.description}</div>}
+                    </div>
                     <button onClick={() => toggleHoneyAvailability(h)} className="px-2 py-1 text-xs rounded-md border border-gray-200 hover:bg-gray-50">
-                      {h.available ? 'Deaktivieren' : 'Aktivieren'}
+                      {h.available ? 'Sichtbar' : 'Versteckt'}
                     </button>
-                    <button onClick={() => deleteHoney(h)} className="px-2 py-1 text-xs rounded-md bg-red-50 text-red-700 hover:bg-red-100">
-                      Löschen
-                    </button>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2 text-sm text-gray-700">
+                    {h.price250 != null && <span className="inline-block px-2 py-1 bg-amber-50 rounded border border-amber-200">250 g · {h.price250}€</span>}
+                    {h.price500 != null && <span className="inline-block px-2 py-1 bg-amber-50 rounded border border-amber-200">500 g · {h.price500}€</span>}
+                    {h.price1000 != null && <span className="inline-block px-2 py-1 bg-amber-50 rounded border border-amber-200">1000 g · {h.price1000}€</span>}
+                  </div>
+                  <div className="mt-4 flex items-center justify-between">
+                    <button onClick={() => { setEditingHoney(h); setEditName(h.name); setEditDesc(h.description || ''); setEditPrice250(h.price250 != null ? String(h.price250) : ''); setEditPrice500(h.price500 != null ? String(h.price500) : ''); setEditPrice1000(h.price1000 != null ? String(h.price1000) : ''); setEditAvailable(!!h.available); }} className="px-3 py-1.5 text-xs rounded-md border border-gray-200 hover:bg-gray-50">Bearbeiten</button>
+                    <button onClick={() => deleteHoney(h)} className="px-3 py-1.5 text-xs rounded-md bg-red-50 text-red-700 hover:bg-red-100">Löschen</button>
                   </div>
                 </div>
               ))}
             </div>
-          </section>
-        </div>
+          )}
+        </section>
 
         {/* Modals */}
         <Modal open={showEmailModal} title="E‑Mail-Adresse ändern" onClose={() => setShowEmailModal(false)}>
@@ -378,6 +396,49 @@ export default function MeinBereichPage() {
             </div>
             <button type="submit" className="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-md">Passwort speichern</button>
           </form>
+        </Modal>
+
+        {/* Honigsorte bearbeiten */}
+        <Modal open={!!editingHoney} title="Honigsorte bearbeiten" onClose={() => setEditingHoney(null)}>
+          {editingHoney && (
+            <form className="space-y-3" onSubmit={async (e) => {
+              e.preventDefault();
+              try {
+                await beekeepersApi.updateHoneyType(editingHoney.id, {
+                  name: editName || undefined,
+                  description: editDesc || undefined,
+                  price250: editPrice250.trim() ? parseFloat(editPrice250) : null,
+                  price500: editPrice500.trim() ? parseFloat(editPrice500) : null,
+                  price1000: editPrice1000.trim() ? parseFloat(editPrice1000) : null,
+                  available: editAvailable,
+                });
+                const me = await beekeepersApi.getMyProfile();
+                setHoneyTypes(me.honeyTypes || []);
+                setEditingHoney(null);
+              } catch (err: any) {
+                setError(err?.response?.data?.message || 'Fehler beim Aktualisieren der Honigsorte');
+              }
+            }}>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Name</label>
+                <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Beschreibung</label>
+                <input type="text" value={editDesc} onChange={(e) => setEditDesc(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <input type="text" inputMode="decimal" placeholder="Preis 250 g" value={editPrice250} onChange={(e) => setEditPrice250(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                <input type="text" inputMode="decimal" placeholder="Preis 500 g" value={editPrice500} onChange={(e) => setEditPrice500(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                <input type="text" inputMode="decimal" placeholder="Preis 1000 g" value={editPrice1000} onChange={(e) => setEditPrice1000(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
+              </div>
+              <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" checked={editAvailable} onChange={(e) => setEditAvailable(e.target.checked)} />
+                sichtbar
+              </label>
+              <button type="submit" className="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-md">Speichern</button>
+            </form>
+          )}
         </Modal>
       </div>
     </main>

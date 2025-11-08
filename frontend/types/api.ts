@@ -11,6 +11,9 @@ export interface HoneyType {
   name: string;
   description?: string;
   price?: string;
+  price250?: number | null;
+  price500?: number | null;
+  price1000?: number | null;
   unit?: string;
   available: boolean;
   image?: string;

@@ -30,6 +30,16 @@ export class HoneyType {
   @Column({ nullable: true })
   unit?: string; // "kg", "500g Glas", "250g Glas"
 
+  // Optional Staffelpreise nach Gewicht (in Gramm)
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  price250?: number | null;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  price500?: number | null;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  price1000?: number | null;
+
   @Column({ default: true })
   available: boolean;
 

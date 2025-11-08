@@ -31,6 +31,10 @@ export const addHoneyTypeSchema = Joi.object({
   price: Joi.number().min(0).max(999999).allow(null),
   unit: Joi.string().max(50).allow('', null),
   available: Joi.boolean().default(true),
+  // Optional gestaffelte Preise
+  price250: Joi.number().min(0).max(999999).allow(null),
+  price500: Joi.number().min(0).max(999999).allow(null),
+  price1000: Joi.number().min(0).max(999999).allow(null),
 });
 
 export const updateHoneyTypeSchema = Joi.object({
@@ -39,6 +43,9 @@ export const updateHoneyTypeSchema = Joi.object({
   price: Joi.number().min(0).max(999999).allow(null),
   unit: Joi.string().max(50).allow('', null),
   available: Joi.boolean(),
+  price250: Joi.number().min(0).max(999999).allow(null),
+  price500: Joi.number().min(0).max(999999).allow(null),
+  price1000: Joi.number().min(0).max(999999).allow(null),
 });
 
 export const geoSearchSchema = Joi.object({

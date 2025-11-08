@@ -96,7 +96,7 @@ export const beekeepersApi = {
   },
 
   addHoneyType: async (
-    honey: { name: string; description?: string; price?: number | null; unit?: string; available?: boolean }
+    honey: { name: string; description?: string; price?: number | null; unit?: string; available?: boolean; price250?: number | null; price500?: number | null; price1000?: number | null }
   ) => {
     const response = await apiClient.post<{ success: boolean }>(
       '/api/beekeepers/honey-types',
@@ -107,7 +107,7 @@ export const beekeepersApi = {
 
   updateHoneyType: async (
     honeyTypeId: string,
-    honey: { name?: string; description?: string; price?: number | null; unit?: string; available?: boolean }
+    honey: { name?: string; description?: string; price?: number | null; unit?: string; available?: boolean; price250?: number | null; price500?: number | null; price1000?: number | null }
   ) => {
     const response = await apiClient.put<{ success: boolean }>(
       `/api/beekeepers/honey-types/${honeyTypeId}`,
