@@ -12,7 +12,7 @@ import {
   registerComplete,
 } from '../controllers/auth.controller';
 import { authenticate } from '../middleware/auth';
-import { changePassword, requestChangeEmail, confirmChangeEmail } from '../controllers/auth.controller';
+import { changePassword, requestChangeEmail, confirmChangeEmail, verifyChangeEmailLink } from '../controllers/auth.controller';
 
 const router = Router();
 
@@ -45,5 +45,6 @@ router.post('/resend-verification', authenticate, resendVerificationEmail);
 router.post('/change-password', authenticate, changePassword);
 router.post('/change-email/request', authenticate, requestChangeEmail);
 router.post('/change-email/confirm', authenticate, confirmChangeEmail);
+router.get('/change-email/verify', verifyChangeEmailLink);
 
 export default router;

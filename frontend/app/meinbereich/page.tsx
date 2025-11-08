@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { beekeepersApi } from '@/lib/api/beekeepers';
 import type { Beekeeper, HoneyType } from '@/types/api';
 import { authApi } from '@/lib/api/auth';
@@ -13,6 +13,8 @@ export default function MeinBereichPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState<Beekeeper | null>(null);
+  const [userEmail, setUserEmail] = useState<string>('');
+  const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
 
   // Modals (email/password)
@@ -68,6 +70,8 @@ export default function MeinBereichPage() {
     return Boolean(localStorage.getItem('token'));
   }, []);
 
+  const searchParams = useSearchParams();
+
   useEffect(() => {
     if (!isAuthed) {
       router.replace('/login');
@@ -86,6 +90,18 @@ export default function MeinBereichPage() {
         setPhone(me.phone || '');
         setWebsite(me.website || '');
         setHoneyTypes(me.honeyTypes || []);
+        // also fetch user email for display
+        try {
+          const profileRes: any = await authApi.getProfile();
+          setUserEmail(profileRes?.data?.user?.email || '');
+        } catch {}
+
+        // show banner if we just confirmed an email change
+        const changed = searchParams?.get('emailChanged');
+        if (changed) {
+          setInfoMessage(`Ihre E-Mail-Adresse wurde erfolgreich auf ${changed} geändert.`);
+          // optional: remove from URL would need router.replace; omitted to avoid interfering with back nav
+        }
         setError(null);
       } catch (err: any) {
         setError(err?.response?.data?.message || 'Fehler beim Laden deines Profils');
@@ -94,7 +110,7 @@ export default function MeinBereichPage() {
       }
     };
     load();
-  }, [isAuthed, router]);
+  }, [isAuthed, router, searchParams]);
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -189,6 +205,7 @@ export default function MeinBereichPage() {
         setShowEmailModal(false);
         setEmailNew('');
         setEmailCode('');
+        setInfoMessage('Wir haben dir einen Bestätigungslink an deine neue E-Mail-Adresse gesendet. Bitte klicke ihn, um die Änderung abzuschließen.');
         const me = await beekeepersApi.getMyProfile();
         setProfile(me);
       } else {
@@ -255,6 +272,9 @@ export default function MeinBereichPage() {
           </div>
         </div>
 
+        {infoMessage && (
+          <div className="mb-4 text-sm text-green-800 bg-green-50 border border-green-200 rounded p-3">{infoMessage}</div>
+        )}
         {error && (
           <div className="mb-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded p-3">{error}</div>
         )}
@@ -273,9 +293,10 @@ export default function MeinBereichPage() {
 
             {!editing && (
               <div className="space-y-3 text-sm">
-                <div><span className="text-gray-500">Firmenname: </span><span className="text-gray-900 font-medium">{name || '–'}</span></div>
-                <div><span className="text-gray-500">Beschreibung: </span><span className="text-gray-900">{description || '–'}</span></div>
-                <div><span className="text-gray-500">Adresse: </span><span className="text-gray-900">{address || '–'}</span></div>
+                <div><span className="text-gray-500">E-Mail: </span><span className="text-gray-900">{userEmail || '—'}</span></div>
+                <div><span className="text-gray-500">Firmenname: </span><span className="text-gray-900 font-medium">{name || '—'}</span></div>
+                <div><span className="text-gray-500">Beschreibung: </span><span className="text-gray-900">{description || '—'}</span></div>
+                <div><span className="text-gray-500">Adresse: </span><span className="text-gray-900">{address || '—'}</span></div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div><span className="text-gray-500">Stadt: </span><span className="text-gray-900">{city || '–'}</span></div>
                   <div><span className="text-gray-500">PLZ: </span><span className="text-gray-900">{postalCode || '–'}</span></div>

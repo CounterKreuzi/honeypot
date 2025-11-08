@@ -55,6 +55,13 @@ export class User {
   @Column({ nullable: true, type: 'varchar', length: 255 })
   changeEmailNewAddress: string | null;
 
+  // Link verification for new email (sent after 2FA code)
+  @Column({ nullable: true, type: 'varchar', length: 255 })
+  changeEmailVerifyToken: string | null;
+
+  @Column({ nullable: true, type: 'timestamp' })
+  changeEmailVerifyTokenExpires: Date | null;
+
   // ============================================================================
 
   @CreateDateColumn()

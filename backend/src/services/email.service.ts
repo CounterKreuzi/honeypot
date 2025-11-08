@@ -10,6 +10,7 @@ const BREVO_API_KEY = process.env.BREVO_API_KEY || '';
 const FROM_EMAIL = process.env.EMAIL_FROM || 'noreply@honig.stefankreuzhuber.com';
 const FROM_NAME = process.env.EMAIL_FROM_NAME || 'Honeypot Imkerplattform';
 const FRONTEND_URL = process.env.FRONTEND_URL || 'https://honig.stefankreuzhuber.com';
+const BACKEND_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 // Brevo API Client initialisieren
 let brevoClient: brevo.TransactionalEmailsApi | null = null;
@@ -377,6 +378,26 @@ export const emailService = {
       </div>
     `;
     await sendEmail(currentEmail, 'Bestätigungscode zur E-Mail-Änderung', html);
+  },
+
+  /**
+   * Sendet Bestätigungslink an die NEUE E-Mail-Adresse
+   */
+  async sendConfirmNewEmailLink(newEmail: string, token: string): Promise<void> {
+    const link = `${BACKEND_URL}/api/auth/change-email/verify?token=${encodeURIComponent(token)}`;
+    const html = `
+      <div style="font-family:Arial,sans-serif;padding:20px;max-width:600px;margin:0 auto;">
+        <h2 style="color:#f59e0b;">Honeypot – Neue E-Mail bestätigen</h2>
+        <p style="color:#374151;line-height:1.6;">
+          Bitte bestätige, dass <strong>${newEmail}</strong> deine E-Mail-Adresse ist, indem du auf den folgenden Button klickst:
+        </p>
+        <p style="margin:24px 0;">
+          <a href="${link}" style="display:inline-block;background:#f59e0b;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:bold;">E-Mail bestätigen</a>
+        </p>
+        <p style="color:#6b7280;">Der Link ist 24 Stunden gültig. Falls du diese Anfrage nicht gestellt hast, ignoriere diese E-Mail.</p>
+      </div>
+    `;
+    await sendEmail(newEmail, 'Bitte bestätige deine neue E-Mail-Adresse', html);
   },
 
   /**

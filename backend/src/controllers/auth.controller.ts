@@ -704,16 +704,71 @@ export const confirmChangeEmail = async (req: AuthRequest, res: Response): Promi
       return;
     }
 
-    user.email = user.changeEmailNewAddress;
-    user.changeEmailNewAddress = null;
+    // Generate verification token for new email and send link
+    const token = generateVerificationToken();
+    const expires = new Date();
+    expires.setHours(expires.getHours() + 24);
+
+    user.changeEmailVerifyToken = token;
+    user.changeEmailVerifyTokenExpires = expires;
+    // clear code after successful entry
     user.changeEmailCode = null;
     user.changeEmailCodeExpires = null;
     await userRepository.save(user);
 
-    res.json({ success: true, message: 'E-Mail-Adresse erfolgreich geändert' });
+    try {
+      await emailService.sendConfirmNewEmailLink(user.changeEmailNewAddress!, token);
+    } catch (e) {
+      console.error('Failed to send confirm new email link:', e);
+      // do not reveal details
+    }
+
+    res.json({ success: true, message: 'Bestätigungslink wurde an deine neue E-Mail gesendet' });
   } catch (error) {
     console.error('Confirm change email error:', error);
     res.status(500).json({ success: false, message: 'Fehler beim Bestätigen der E-Mail-Änderung' });
+  }
+};
+
+// Verify confirmation link sent to the NEW email and finalize the change
+export const verifyChangeEmailLink = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const token = (req.query.token as string) || (req.body && (req.body as any).token);
+    if (!token) {
+      res.status(400).json({ success: false, message: 'Token fehlt' });
+      return;
+    }
+
+    const user = await userRepository.findOne({ where: { changeEmailVerifyToken: token } });
+    if (!user || !user.changeEmailVerifyTokenExpires || !user.changeEmailNewAddress) {
+      res.status(400).json({ success: false, message: 'Ungültiger oder abgelaufener Token' });
+      return;
+    }
+    if (user.changeEmailVerifyTokenExpires < new Date()) {
+      res.status(400).json({ success: false, message: 'Token ist abgelaufen' });
+      return;
+    }
+
+    // Make sure the target email isn't taken meanwhile
+    const existing = await userRepository.findOne({ where: { email: user.changeEmailNewAddress } });
+    if (existing) {
+      res.status(400).json({ success: false, message: 'E-Mail bereits vergeben' });
+      return;
+    }
+
+    const newEmail = user.changeEmailNewAddress;
+    user.email = newEmail;
+    user.changeEmailNewAddress = null;
+    user.changeEmailVerifyToken = null;
+    user.changeEmailVerifyTokenExpires = null;
+    await userRepository.save(user);
+
+    const FRONTEND_URL = process.env.FRONTEND_URL || 'https://honig.stefankreuzhuber.com';
+    // Redirect to Mein Bereich with info banner
+    res.redirect(302, `${FRONTEND_URL}/meinbereich?emailChanged=${encodeURIComponent(newEmail!)}`);
+  } catch (error) {
+    console.error('Verify change email link error:', error);
+    res.status(500).json({ success: false, message: 'Fehler beim Bestätigen der neuen E-Mail' });
   }
 };
 
