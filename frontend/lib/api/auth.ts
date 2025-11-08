@@ -76,6 +76,27 @@ export const authApi = {
     );
     return response.data;
   },
+  changePassword: async (currentPassword: string, newPassword: string) => {
+    const response = await apiClient.post<{ success: boolean; message: string }>(
+      '/api/auth/change-password',
+      { currentPassword, newPassword }
+    );
+    return response.data;
+  },
+  requestChangeEmail: async (newEmail: string) => {
+    const response = await apiClient.post<{ success: boolean; message: string }>(
+      '/api/auth/change-email/request',
+      { newEmail }
+    );
+    return response.data;
+  },
+  confirmChangeEmail: async (code: string) => {
+    const response = await apiClient.post<{ success: boolean; message: string }>(
+      '/api/auth/change-email/confirm',
+      { code }
+    );
+    return response.data;
+  },
   verifyEmail: async (token: string) => {
     const response = await apiClient.post<{ success: boolean; message: string }>(
       '/api/auth/verify-email',

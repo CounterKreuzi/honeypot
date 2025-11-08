@@ -361,6 +361,23 @@ export const emailService = {
     const html = getProfileActivatedEmailTemplate(name);
     await sendEmail(email, 'Dein Profil ist jetzt live! 🎉', html);
   },
+  /**
+   * Sendet 2FA-Code zur Bestätigung der E-Mail-Änderung an die aktuelle E-Mail
+   */
+  async sendChangeEmailCode(currentEmail: string, code: string, newEmail: string): Promise<void> {
+    const html = `
+      <div style="font-family:Arial,sans-serif;padding:20px;max-width:600px;margin:0 auto;">
+        <h2 style="color:#f59e0b;">Honeypot – E-Mail ändern</h2>
+        <p style="color:#374151;line-height:1.6;">
+          Du möchtest deine E-Mail-Adresse auf <strong>${newEmail}</strong> ändern.
+          Gib den folgenden Bestätigungscode in der App ein, um fortzufahren:
+        </p>
+        <div style="font-size:28px;font-weight:bold;letter-spacing:4px;color:#111827;margin:20px 0;">${code}</div>
+        <p style="color:#6b7280;">Dieser Code ist 15 Minuten gültig.</p>
+      </div>
+    `;
+    await sendEmail(currentEmail, 'Bestätigungscode zur E-Mail-Änderung', html);
+  },
 
   /**
    * Sendet einfache Benachrichtigungs-E-Mail

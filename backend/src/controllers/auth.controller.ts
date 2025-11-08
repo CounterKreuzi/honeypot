@@ -574,6 +574,150 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
 };
 
 // ============================================================================
+// CHANGE PASSWORD (AUTHENTICATED)
+// ============================================================================
+
+export const changePassword = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+    const { currentPassword, newPassword } = req.body || {};
+
+    if (!userId) {
+      res.status(401).json({ success: false, message: 'Authentifizierung erforderlich' });
+      return;
+    }
+    if (!currentPassword || !newPassword) {
+      res.status(400).json({ success: false, message: 'Aktuelles und neues Passwort sind erforderlich' });
+      return;
+    }
+    if (newPassword.length < 8) {
+      res.status(400).json({ success: false, message: 'Neues Passwort muss mindestens 8 Zeichen lang sein' });
+      return;
+    }
+
+    const user = await userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      res.status(404).json({ success: false, message: 'Benutzer nicht gefunden' });
+      return;
+    }
+
+    const ok = await comparePassword(currentPassword, user.password);
+    if (!ok) {
+      res.status(400).json({ success: false, message: 'Aktuelles Passwort ist falsch' });
+      return;
+    }
+
+    user.password = await hashPassword(newPassword);
+    await userRepository.save(user);
+    res.json({ success: true, message: 'Passwort erfolgreich geändert' });
+  } catch (error) {
+    console.error('Change password error:', error);
+    res.status(500).json({ success: false, message: 'Fehler beim Ändern des Passworts' });
+  }
+};
+
+// ============================================================================
+// CHANGE EMAIL WITH 2FA CODE (AUTHENTICATED)
+// ============================================================================
+
+export const requestChangeEmail = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+    const { newEmail } = req.body || {};
+    if (!userId) {
+      res.status(401).json({ success: false, message: 'Authentifizierung erforderlich' });
+      return;
+    }
+    if (!newEmail) {
+      res.status(400).json({ success: false, message: 'Neue E-Mail-Adresse ist erforderlich' });
+      return;
+    }
+
+    const existing = await userRepository.findOne({ where: { email: newEmail } });
+    if (existing) {
+      res.status(400).json({ success: false, message: 'Es existiert bereits ein Konto mit dieser E-Mail' });
+      return;
+    }
+
+    const user = await userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      res.status(404).json({ success: false, message: 'Benutzer nicht gefunden' });
+      return;
+    }
+
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expires = new Date(Date.now() + 15 * 60 * 1000);
+
+    user.changeEmailCode = code;
+    user.changeEmailCodeExpires = expires;
+    user.changeEmailNewAddress = newEmail;
+    await userRepository.save(user);
+
+    try {
+      await emailService.sendChangeEmailCode(user.email, code, newEmail);
+    } catch (emailErr) {
+      console.error('Change email code send error:', emailErr);
+    }
+
+    res.json({ success: true, message: 'Bestätigungscode wurde an deine aktuelle E-Mail gesendet' });
+  } catch (error) {
+    console.error('Request change email error:', error);
+    res.status(500).json({ success: false, message: 'Fehler bei der E-Mail-Änderungsanfrage' });
+  }
+};
+
+export const confirmChangeEmail = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+    const { code } = req.body || {};
+    if (!userId) {
+      res.status(401).json({ success: false, message: 'Authentifizierung erforderlich' });
+      return;
+    }
+    if (!code) {
+      res.status(400).json({ success: false, message: 'Bestätigungscode ist erforderlich' });
+      return;
+    }
+
+    const user = await userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      res.status(404).json({ success: false, message: 'Benutzer nicht gefunden' });
+      return;
+    }
+
+    if (!user.changeEmailCode || !user.changeEmailCodeExpires || !user.changeEmailNewAddress) {
+      res.status(400).json({ success: false, message: 'Keine ausstehende E-Mail-Änderung gefunden' });
+      return;
+    }
+    if (user.changeEmailCode !== code) {
+      res.status(400).json({ success: false, message: 'Der Bestätigungscode ist ungültig' });
+      return;
+    }
+    if (user.changeEmailCodeExpires < new Date()) {
+      res.status(400).json({ success: false, message: 'Der Bestätigungscode ist abgelaufen' });
+      return;
+    }
+
+    const existing = await userRepository.findOne({ where: { email: user.changeEmailNewAddress } });
+    if (existing) {
+      res.status(400).json({ success: false, message: 'E-Mail bereits vergeben' });
+      return;
+    }
+
+    user.email = user.changeEmailNewAddress;
+    user.changeEmailNewAddress = null;
+    user.changeEmailCode = null;
+    user.changeEmailCodeExpires = null;
+    await userRepository.save(user);
+
+    res.json({ success: true, message: 'E-Mail-Adresse erfolgreich geändert' });
+  } catch (error) {
+    console.error('Confirm change email error:', error);
+    res.status(500).json({ success: false, message: 'Fehler beim Bestätigen der E-Mail-Änderung' });
+  }
+};
+
+// ============================================================================
 // REGISTRATION INTENT (Option B)
 // ============================================================================
 

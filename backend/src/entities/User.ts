@@ -43,6 +43,19 @@ export class User {
   resetPasswordTokenExpires: Date | null;
 
   // ============================================================================
+  // EMAIL CHANGE (2FA via code to current email)
+  // ============================================================================
+
+  @Column({ nullable: true, type: 'varchar', length: 255 })
+  changeEmailCode: string | null;
+
+  @Column({ nullable: true, type: 'timestamp' })
+  changeEmailCodeExpires: Date | null;
+
+  @Column({ nullable: true, type: 'varchar', length: 255 })
+  changeEmailNewAddress: string | null;
+
+  // ============================================================================
 
   @CreateDateColumn()
   createdAt: Date;
