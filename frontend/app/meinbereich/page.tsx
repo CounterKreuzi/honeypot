@@ -141,7 +141,7 @@ export default function MeinBereichPage() {
       setNewHoneyAvailable(true);
       setError(null);
     } catch (err: any) {
-      setError(err?.response?.data?.message || 'Fehler beim HinzufÃ¼gen der Honigsorte');
+      setError(err?.response?.data?.message || 'Fehler beim Hinzufügen der Honigsorte');
     }
   };
 
@@ -203,7 +203,7 @@ export default function MeinBereichPage() {
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!pwNew || pwNew.length < 8 || pwNew !== pwNew2) {
-      setError('Bitte neues Passwort prÃ¼fen (mind. 8 Zeichen, identisch).');
+      setError('Bitte neues Passwort prüfen (mind. 8 Zeichen, identisch).');
       return;
     }
     try {
@@ -213,10 +213,10 @@ export default function MeinBereichPage() {
         setShowPasswordModal(false);
         setPwCurrent(''); setPwNew(''); setPwNew2('');
       } else {
-        setError(res?.message || 'Passwort konnte nicht geÃ¤ndert werden');
+        setError(res?.message || 'Passwort konnte nicht geändert werden');
       }
     } catch (err: any) {
-      setError(err?.response?.data?.message || 'Fehler beim Passwort Ã¤ndern');
+      setError(err?.response?.data?.message || 'Fehler beim Passwort ändern');
     }
   };
 
@@ -230,7 +230,7 @@ export default function MeinBereichPage() {
   if (loading) {
     return (
       <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 to-yellow-50">
-        <div className="bg-white rounded-lg shadow p-6">Lade Bereich â€¦</div>
+        <div className="bg-white rounded-lg shadow p-6">Lade Bereich …</div>
       </main>
     );
   }
@@ -260,23 +260,23 @@ export default function MeinBereichPage() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold">Stammdaten</h2>
               <div className="flex items-center gap-2">
-                <button type="button" onClick={() => { setShowEmailModal(true); setEmailFlowStep('request'); setEmailNew(''); setEmailCode(''); }} className="px-3 py-1.5 text-sm border border-gray-200 rounded-md hover:bg-gray-50">Eâ€‘Mail-Adresse Ã¤ndern</button>
-                <button type="button" onClick={() => setShowPasswordModal(true)} className="px-3 py-1.5 text-sm border border-gray-200 rounded-md hover:bg-gray-50">Passwort Ã¤ndern</button>
+                <button type="button" onClick={() => { setShowEmailModal(true); setEmailFlowStep('request'); setEmailNew(''); setEmailCode(''); }} className="px-3 py-1.5 text-sm border border-gray-200 rounded-md hover:bg-gray-50">E-Mail-Adresse ändern</button>
+                <button type="button" onClick={() => setShowPasswordModal(true)} className="px-3 py-1.5 text-sm border border-gray-200 rounded-md hover:bg-gray-50">Passwort ändern</button>
                 <button type="button" onClick={() => setEditing((v) => !v)} className="px-3 py-1.5 text-sm bg-amber-600 text-white rounded-md hover:bg-amber-700">{editing ? 'Abbrechen' : 'Stammdaten bearbeiten'}</button>
               </div>
             </div>
 
             {!editing && (
               <div className="space-y-3 text-sm">
-                <div><span className="text-gray-500">Firmenname: </span><span className="text-gray-900 font-medium">{name || 'â€“'}</span></div>
-                <div><span className="text-gray-500">Beschreibung: </span><span className="text-gray-900">{description || 'â€“'}</span></div>
-                <div><span className="text-gray-500">Adresse: </span><span className="text-gray-900">{address || 'â€“'}</span></div>
+                <div><span className="text-gray-500">Firmenname: </span><span className="text-gray-900 font-medium">{name || '–'}</span></div>
+                <div><span className="text-gray-500">Beschreibung: </span><span className="text-gray-900">{description || '–'}</span></div>
+                <div><span className="text-gray-500">Adresse: </span><span className="text-gray-900">{address || '–'}</span></div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div><span className="text-gray-500">Stadt: </span><span className="text-gray-900">{city || 'â€“'}</span></div>
-                  <div><span className="text-gray-500">PLZ: </span><span className="text-gray-900">{postalCode || 'â€“'}</span></div>
-                  <div><span className="text-gray-500">Telefon: </span><span className="text-gray-900">{phone || 'â€“'}</span></div>
+                  <div><span className="text-gray-500">Stadt: </span><span className="text-gray-900">{city || '–'}</span></div>
+                  <div><span className="text-gray-500">PLZ: </span><span className="text-gray-900">{postalCode || '–'}</span></div>
+                  <div><span className="text-gray-500">Telefon: </span><span className="text-gray-900">{phone || '–'}</span></div>
                 </div>
-                <div><span className="text-gray-500">Website: </span><span className="text-gray-900">{website || 'â€“'}</span></div>
+                <div><span className="text-gray-500">Website: </span><span className="text-gray-900">{website || '–'}</span></div>
               </div>
             )}
 
@@ -313,7 +313,7 @@ export default function MeinBereichPage() {
                   <input type="url" id="website" name="website" autoComplete="url" value={website} onChange={(e) => setWebsite(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
                 </div>
                 <div className="flex gap-3 justify-end">
-                  <button type="submit" disabled={saving} className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-md disabled:opacity-50">{saving ? 'Speichern â€¦' : 'Speichern'}</button>
+                  <button type="submit" disabled={saving} className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-md disabled:opacity-50">{saving ? 'Speichern …' : 'Speichern'}</button>
                 </div>
               </form>
             )}
@@ -338,10 +338,10 @@ export default function MeinBereichPage() {
               <div className="mt-2">
                 <label className="inline-flex items-center gap-2 text-sm text-gray-700">
                   <Toggle checked={newHoneyAvailable} onChange={(v) => setNewHoneyAvailable(v)} />
-                  verfÃ¼gbar
+                  verfügbar
                 </label>
               </div>
-              <button type="submit" className="w-full px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-md">HinzufÃ¼gen</button>
+              <button type="submit" className="w-full px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-md">Hinzufügen</button>
             </form>
           </section>
         </div>
@@ -349,7 +349,7 @@ export default function MeinBereichPage() {
         {/* Bestehende Honigsorten */}
         <section className="mt-6">
           {honeyTypes.length === 0 ? (
-            <div className="text-sm text-gray-600">Noch keine Honigsorten hinzugefÃ¼gt.</div>
+            <div className="text-sm text-gray-600">Noch keine Honigsorten hinzugefügt.</div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {honeyTypes.map((h) => (
@@ -380,19 +380,19 @@ export default function MeinBereichPage() {
         </section>
 
         {/* Modals */}
-        <Modal open={showEmailModal} title="Eâ€‘Mail-Adresse Ã¤ndern" onClose={() => setShowEmailModal(false)}>
+        <Modal open={showEmailModal} title="E-Mail-Adresse ändern" onClose={() => setShowEmailModal(false)}>
           {emailFlowStep === 'request' ? (
             <form className="space-y-3" onSubmit={handleEmailRequest}>
-              <label className="block text-sm font-medium text-gray-700">Neue Eâ€‘Mail-Adresse</label>
+              <label className="block text-sm font-medium text-gray-700">Neue E-Mail-Adresse</label>
               <input type="email" autoComplete="email" value={emailNew} onChange={(e) => setEmailNew(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" required />
               <button type="submit" className="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-md">Code senden</button>
             </form>
           ) : (
             <form className="space-y-3" onSubmit={handleEmailConfirm}>
-              <p className="text-sm text-gray-600">Wir haben dir einen Code an deine aktuelle Eâ€‘Mail gesendet.</p>
+              <p className="text-sm text-gray-600">Wir haben dir einen Code an deine aktuelle E-Mail gesendet.</p>
               <label className="block text-sm font-medium text-gray-700">BestÃ¤tigungscode</label>
               <input type="text" inputMode="numeric" value={emailCode} onChange={(e) => setEmailCode(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" required />
-              <button type="submit" className="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-md">Eâ€‘Mail Ã¤ndern</button>
+              <button type="submit" className="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-md">E-Mail ändern</button>
             </form>
           )}
         </Modal>
@@ -410,7 +410,7 @@ export default function MeinBereichPage() {
           )}
         </Modal>
 
-        <Modal open={showPasswordModal} title="Passwort Ã¤ndern" onClose={() => setShowPasswordModal(false)}>
+        <Modal open={showPasswordModal} title="Passwort ändern" onClose={() => setShowPasswordModal(false)}>
           <form className="space-y-3" onSubmit={handleChangePassword}>
             <div>
               <label className="block text-sm font-medium text-gray-700">Aktuelles Passwort</label>
@@ -421,7 +421,7 @@ export default function MeinBereichPage() {
               <input type="password" autoComplete="new-password" value={pwNew} onChange={(e) => setPwNew(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" required minLength={8} />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Neues Passwort bestÃ¤tigen</label>
+              <label className="block text-sm font-medium text-gray-700">Neues Passwort bestätigen</label>
               <input type="password" autoComplete="new-password" value={pwNew2} onChange={(e) => setPwNew2(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" required minLength={8} />
             </div>
             <button type="submit" className="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-md">Passwort speichern</button>
@@ -501,7 +501,7 @@ function Modal({ open, title, children, onClose }: { open: boolean; title: strin
       <div className="w-full max-w-md bg-white rounded-lg shadow p-5">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-lg font-semibold">{title}</h3>
-          <button onClick={onClose} className="text-sm text-gray-600 hover:text-gray-900">SchlieÃŸen</button>
+          <button onClick={onClose} className="text-sm text-gray-600 hover:text-gray-900">Schließen</button>
         </div>
         {children}
       </div>
