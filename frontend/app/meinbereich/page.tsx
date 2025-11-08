@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { beekeepersApi } from '@/lib/api/beekeepers';
 import type { Beekeeper, HoneyType } from '@/types/api';
 import { authApi } from '@/lib/api/auth';
@@ -70,8 +70,6 @@ export default function MeinBereichPage() {
     return Boolean(localStorage.getItem('token'));
   }, []);
 
-  const searchParams = useSearchParams();
-
   useEffect(() => {
     if (!isAuthed) {
       router.replace('/login');
@@ -96,11 +94,13 @@ export default function MeinBereichPage() {
           setUserEmail(profileRes?.data?.user?.email || '');
         } catch {}
 
-        // show banner if we just confirmed an email change
-        const changed = searchParams?.get('emailChanged');
-        if (changed) {
-          setInfoMessage(`Ihre E-Mail-Adresse wurde erfolgreich auf ${changed} geändert.`);
-          // optional: remove from URL would need router.replace; omitted to avoid interfering with back nav
+        // show banner if we just confirmed an email change (client-side only)
+        if (typeof window !== 'undefined') {
+          const sp = new URLSearchParams(window.location.search);
+          const changed = sp.get('emailChanged');
+          if (changed) {
+            setInfoMessage(`Ihre E-Mail-Adresse wurde erfolgreich auf ${changed} geändert.`);
+          }
         }
         setError(null);
       } catch (err: any) {
@@ -110,7 +110,7 @@ export default function MeinBereichPage() {
       }
     };
     load();
-  }, [isAuthed, router, searchParams]);
+  }, [isAuthed, router]);
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
