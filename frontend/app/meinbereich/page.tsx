@@ -322,18 +322,28 @@ export default function MeinBereichPage() {
           {/* Honig anlegen */}
           <section className="bg-white rounded-lg shadow p-5">
             <h2 className="text-lg font-semibold mb-4">Honig anlegen</h2>
-            <form className="space-y-3 mb-4" onSubmit={handleAddHoney}>
+            <form className="space-y-4 mb-4" onSubmit={handleAddHoney}>
               <label className="block text-sm font-medium text-gray-700">Honigsorte</label>
               <input type="text" value={newHoneyName} onChange={(e) => setNewHoneyName(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
               <label className="block text-sm font-medium text-gray-700">Beschreibung (optional)</label>
               <input type="text" value={newHoneyDesc} onChange={(e) => setNewHoneyDesc(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <label className="block text-sm font-medium text-gray-700">Preis 250 g (z.B. 4,00)</label>
-                <input type="text" inputMode="decimal" value={newHoneyPrice250} onChange={(e) => setNewHoneyPrice250(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
-                <label className="block text-sm font-medium text-gray-700">Preis 500 g (z.B. 6,50)</label>
-                <input type="text" inputMode="decimal" value={newHoneyPrice500} onChange={(e) => setNewHoneyPrice500(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
-                <label className="block text-sm font-medium text-gray-700">Preis 1000 g (z.B. 12,00)</label>
-                <input type="text" inputMode="decimal" value={newHoneyPrice1000} onChange={(e) => setNewHoneyPrice1000(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
+              <div>
+                <div className="text-sm font-medium text-gray-900 mb-1">Preise</div>
+                <p className="text-xs text-gray-500 mb-2">Bitte im Format 4,00 eingeben, wenn die Menge angeboten wird</p>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <label htmlFor="price250" className="text-sm text-gray-700">250 g</label>
+                    <input id="price250" type="text" inputMode="decimal" value={newHoneyPrice250} onChange={(e) => setNewHoneyPrice250(e.target.value)} className="w-40 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <label htmlFor="price500" className="text-sm text-gray-700">500 g</label>
+                    <input id="price500" type="text" inputMode="decimal" value={newHoneyPrice500} onChange={(e) => setNewHoneyPrice500(e.target.value)} className="w-40 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <label htmlFor="price1000" className="text-sm text-gray-700">1000 g</label>
+                    <input id="price1000" type="text" inputMode="decimal" value={newHoneyPrice1000} onChange={(e) => setNewHoneyPrice1000(e.target.value)} className="w-40 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                  </div>
+                </div>
               </div>
               <div className="mt-2">
                 <label className="inline-flex items-center gap-2 text-sm text-gray-700">
@@ -457,10 +467,23 @@ export default function MeinBereichPage() {
                 <label className="block text-sm font-medium text-gray-700">Beschreibung</label>
                 <input type="text" value={editDesc} onChange={(e) => setEditDesc(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <input type="text" inputMode="decimal" placeholder="Preis 250 g" value={editPrice250} onChange={(e) => setEditPrice250(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
-                <input type="text" inputMode="decimal" placeholder="Preis 500 g" value={editPrice500} onChange={(e) => setEditPrice500(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
-                <input type="text" inputMode="decimal" placeholder="Preis 1000 g" value={editPrice1000} onChange={(e) => setEditPrice1000(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
+              <div>
+                <div className="text-sm font-medium text-gray-900 mb-1">Preise</div>
+                <p className="text-xs text-gray-500 mb-2">Bitte im Format 4,00 eingeben, wenn die Menge angeboten wird</p>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <label htmlFor="editPrice250" className="text-sm text-gray-700">250 g</label>
+                    <input id="editPrice250" type="text" inputMode="decimal" value={editPrice250} onChange={(e) => setEditPrice250(e.target.value)} className="w-40 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <label htmlFor="editPrice500" className="text-sm text-gray-700">500 g</label>
+                    <input id="editPrice500" type="text" inputMode="decimal" value={editPrice500} onChange={(e) => setEditPrice500(e.target.value)} className="w-40 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <label htmlFor="editPrice1000" className="text-sm text-gray-700">1000 g</label>
+                    <input id="editPrice1000" type="text" inputMode="decimal" value={editPrice1000} onChange={(e) => setEditPrice1000(e.target.value)} className="w-40 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                  </div>
+                </div>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-700">Sichtbar</span>
