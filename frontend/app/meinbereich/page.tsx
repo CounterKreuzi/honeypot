@@ -15,7 +15,7 @@ export default function MeinBereichPage() {
   const [profile, setProfile] = useState<Beekeeper | null>(null);
   const [editing, setEditing] = useState(false);
 
-  // Modals for email/password changes
+  // Modals (email/password)
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [emailNew, setEmailNew] = useState('');
@@ -89,6 +89,7 @@ export default function MeinBereichPage() {
         website: website || undefined,
       });
       setProfile(updated);
+      setEditing(false);
       setError(null);
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Fehler beim Speichern');
@@ -118,7 +119,7 @@ export default function MeinBereichPage() {
       setNewHoneyAvailable(true);
       setError(null);
     } catch (err: any) {
-      setError(err?.response?.data?.message || 'Fehler beim HinzufÃ¼gen der Honigsorte');
+      setError(err?.response?.data?.message || 'Fehler beim Hinzufügen der Honigsorte');
     }
   };
 
@@ -138,11 +139,11 @@ export default function MeinBereichPage() {
       const me = await beekeepersApi.getMyProfile();
       setHoneyTypes(me.honeyTypes || []);
     } catch (err: any) {
-      setError(err?.response?.data?.message || 'Fehler beim LÃ¶schen');
+      setError(err?.response?.data?.message || 'Fehler beim Löschen');
     }
   };
 
-  // Email change flow
+  // Email change
   const handleEmailRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -157,7 +158,6 @@ export default function MeinBereichPage() {
       setError(err?.response?.data?.message || 'Fehler beim Senden des Codes');
     }
   };
-
   const handleEmailConfirm = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -167,21 +167,21 @@ export default function MeinBereichPage() {
         setShowEmailModal(false);
         setEmailNew('');
         setEmailCode('');
-        // Reload profile
         const me = await beekeepersApi.getMyProfile();
         setProfile(me);
       } else {
-        setError(res?.message || 'BestÃ¤tigung fehlgeschlagen');
+        setError(res?.message || 'Bestätigung fehlgeschlagen');
       }
     } catch (err: any) {
-      setError(err?.response?.data?.message || 'Fehler bei der BestÃ¤tigung');
+      setError(err?.response?.data?.message || 'Fehler bei der Bestätigung');
     }
   };
 
+  // Password change
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!pwNew || pwNew.length < 8 || pwNew !== pwNew2) {
-      setError('Bitte neues Passwort prÃ¼fen (mind. 8 Zeichen, identisch).');
+      setError('Bitte neues Passwort prüfen (mind. 8 Zeichen, identisch).');
       return;
     }
     try {
@@ -191,10 +191,10 @@ export default function MeinBereichPage() {
         setShowPasswordModal(false);
         setPwCurrent(''); setPwNew(''); setPwNew2('');
       } else {
-        setError(res?.message || 'Passwort konnte nicht geÃ¤ndert werden');
+        setError(res?.message || 'Passwort konnte nicht geändert werden');
       }
     } catch (err: any) {
-      setError(err?.response?.data?.message || 'Fehler beim Passwort Ã¤ndern');
+      setError(err?.response?.data?.message || 'Fehler beim Passwort ändern');
     }
   };
 
@@ -208,7 +208,7 @@ export default function MeinBereichPage() {
   if (loading) {
     return (
       <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 to-yellow-50">
-        <div className="bg-white rounded-lg shadow p-6">Lade Bereichâ€¦</div>
+        <div className="bg-white rounded-lg shadow p-6">Lade Bereich …</div>
       </main>
     );
   }
@@ -238,117 +238,62 @@ export default function MeinBereichPage() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold">Stammdaten</h2>
               <div className="flex items-center gap-2">
-                <button type="button" onClick={() => { setShowEmailModal(true); setEmailFlowStep('request'); setEmailNew(''); setEmailCode(''); }} className="px-3 py-1.5 text-sm border border-gray-200 rounded-md hover:bg-gray-50">Eâ€‘Mail-Adresse Ã¤ndern</button>
-                <button type="button" onClick={() => setShowPasswordModal(true)} className="px-3 py-1.5 text-sm border border-gray-200 rounded-md hover:bg-gray-50">Passwort Ã¤ndern</button>
+                <button type="button" onClick={() => { setShowEmailModal(true); setEmailFlowStep('request'); setEmailNew(''); setEmailCode(''); }} className="px-3 py-1.5 text-sm border border-gray-200 rounded-md hover:bg-gray-50">E‑Mail-Adresse ändern</button>
+                <button type="button" onClick={() => setShowPasswordModal(true)} className="px-3 py-1.5 text-sm border border-gray-200 rounded-md hover:bg-gray-50">Passwort ändern</button>
                 <button type="button" onClick={() => setEditing((v) => !v)} className="px-3 py-1.5 text-sm bg-amber-600 text-white rounded-md hover:bg-amber-700">{editing ? 'Abbrechen' : 'Stammdaten bearbeiten'}</button>
               </div>
             </div>
 
             {!editing && (
               <div className="space-y-3 text-sm">
-                <div><span className="text-gray-500">Firmenname: </span><span className="text-gray-900 font-medium">{name || 'â€“'}</span></div>
-                <div><span className="text-gray-500">Beschreibung: </span><span className="text-gray-900">{description || 'â€“'}</span></div>
-                <div><span className="text-gray-500">Adresse: </span><span className="text-gray-900">{address || 'â€“'}</span></div>
+                <div><span className="text-gray-500">Firmenname: </span><span className="text-gray-900 font-medium">{name || '–'}</span></div>
+                <div><span className="text-gray-500">Beschreibung: </span><span className="text-gray-900">{description || '–'}</span></div>
+                <div><span className="text-gray-500">Adresse: </span><span className="text-gray-900">{address || '–'}</span></div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div><span className="text-gray-500">Stadt: </span><span className="text-gray-900">{city || 'â€“'}</span></div>
-                  <div><span className="text-gray-500">PLZ: </span><span className="text-gray-900">{postalCode || 'â€“'}</span></div>
-                  <div><span className="text-gray-500">Telefon: </span><span className="text-gray-900">{phone || 'â€“'}</span></div>
+                  <div><span className="text-gray-500">Stadt: </span><span className="text-gray-900">{city || '–'}</span></div>
+                  <div><span className="text-gray-500">PLZ: </span><span className="text-gray-900">{postalCode || '–'}</span></div>
+                  <div><span className="text-gray-500">Telefon: </span><span className="text-gray-900">{phone || '–'}</span></div>
                 </div>
-                <div><span className="text-gray-500">Website: </span><span className="text-gray-900">{website || 'â€“'}</span></div>
+                <div><span className="text-gray-500">Website: </span><span className="text-gray-900">{website || '–'}</span></div>
               </div>
             )}
 
             {editing && (
-            <form className="space-y-4" onSubmit={handleSaveProfile}>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Firmenname</label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Beschreibung</label>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  rows={4}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Adresse</label>
-                <input
-                  type="text"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
-                />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <form className="space-y-4" onSubmit={handleSaveProfile}>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Stadt</label>
-                  <input
-                    type="text"
-                    id="city"
-                    name="city"
-                    autoComplete="address-level2"
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  />
+                  <label htmlFor="name" className="block text-sm font-medium text-gray-700">Firmenname</label>
+                  <input type="text" id="name" name="name" value={name} onChange={(e) => setName(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">PLZ</label>
-                  <input
-                    type="text"
-                    id="postalCode"
-                    name="postalCode"
-                    autoComplete="postal-code"
-                    inputMode="numeric"
-                    value={postalCode}
-                    onChange={(e) => setPostalCode(e.target.value)}
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  />
+                  <label htmlFor="description" className="block text-sm font-medium text-gray-700">Beschreibung</label>
+                  <textarea id="description" name="description" value={description} onChange={(e) => setDescription(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" rows={4} />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Telefon</label>
-                  <input
-                    type="tel"
-                    id="phone"
-                    name="phone"
-                    autoComplete="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  />
+                  <label htmlFor="address" className="block text-sm font-medium text-gray-700">Adresse</label>
+                  <input type="text" id="address" name="address" autoComplete="street-address" value={address} onChange={(e) => setAddress(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
                 </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Website</label>
-                <input
-                  type="url"
-                  id="website"
-                  name="website"
-                  autoComplete="url"
-                  value={website}
-                  onChange={(e) => setWebsite(e.target.value)}
-                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
-                />
-              </div>
-
-              <div className="flex gap-3 justify-end">
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-md disabled:opacity-50"
-                >
-                  {saving ? 'Speichernâ€¦' : 'Speichern'}
-                </button>
-              </div>
-            </form>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label htmlFor="city" className="block text-sm font-medium text-gray-700">Stadt</label>
+                    <input type="text" id="city" name="city" autoComplete="address-level2" value={city} onChange={(e) => setCity(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                  </div>
+                  <div>
+                    <label htmlFor="postalCode" className="block text-sm font-medium text-gray-700">PLZ</label>
+                    <input type="text" id="postalCode" name="postalCode" autoComplete="postal-code" inputMode="numeric" value={postalCode} onChange={(e) => setPostalCode(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                  </div>
+                  <div>
+                    <label htmlFor="phone" className="block text-sm font-medium text-gray-700">Telefon</label>
+                    <input type="tel" id="phone" name="phone" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                  </div>
+                </div>
+                <div>
+                  <label htmlFor="website" className="block text-sm font-medium text-gray-700">Website</label>
+                  <input type="url" id="website" name="website" autoComplete="url" value={website} onChange={(e) => setWebsite(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                </div>
+                <div className="flex gap-3 justify-end">
+                  <button type="submit" disabled={saving} className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-md disabled:opacity-50">{saving ? 'Speichern …' : 'Speichern'}</button>
+                </div>
+              </form>
             )}
           </section>
 
@@ -356,55 +301,22 @@ export default function MeinBereichPage() {
           <section className="bg-white rounded-lg shadow p-5">
             <h2 className="text-lg font-semibold mb-4">Honigsorten</h2>
             <form className="space-y-3 mb-4" onSubmit={handleAddHoney}>
-              <input
-                type="text"
-                placeholder="Honigsorte (z.B. BlÃ¼tenhonig)"
-                value={newHoneyName}
-                onChange={(e) => setNewHoneyName(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
-              />
-              <input
-                type="text"
-                placeholder="Beschreibung (optional)"
-                value={newHoneyDesc}
-                onChange={(e) => setNewHoneyDesc(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
-              />
+              <input type="text" placeholder="Honigsorte (z.B. Blütenhonig)" value={newHoneyName} onChange={(e) => setNewHoneyName(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
+              <input type="text" placeholder="Beschreibung (optional)" value={newHoneyDesc} onChange={(e) => setNewHoneyDesc(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
               <div className="grid grid-cols-3 gap-3">
-                <input
-                  type="text"
-                  placeholder="Preis (z.B. 6.50)"
-                  value={newHoneyPrice}
-                  onChange={(e) => setNewHoneyPrice(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
-                />
-                <input
-                  type="text"
-                  placeholder="Einheit (z.B. 500g)"
-                  value={newHoneyUnit}
-                  onChange={(e) => setNewHoneyUnit(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
-                />
+                <input type="text" placeholder="Preis (z.B. 6.50)" value={newHoneyPrice} onChange={(e) => setNewHoneyPrice(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                <input type="text" placeholder="Einheit (z.B. 500g)" value={newHoneyUnit} onChange={(e) => setNewHoneyUnit(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
                 <label className="flex items-center gap-2 text-sm text-gray-700">
-                  <input
-                    type="checkbox"
-                    checked={newHoneyAvailable}
-                    onChange={(e) => setNewHoneyAvailable(e.target.checked)}
-                  />
-                  verfÃ¼gbar
+                  <input type="checkbox" checked={newHoneyAvailable} onChange={(e) => setNewHoneyAvailable(e.target.checked)} />
+                  verfügbar
                 </label>
               </div>
-              <button
-                type="submit"
-                className="w-full px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-md"
-              >
-                HinzufÃ¼gen
-              </button>
+              <button type="submit" className="w-full px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-md">Hinzufügen</button>
             </form>
 
             <div className="space-y-2">
               {honeyTypes.length === 0 && (
-                <div className="text-sm text-gray-600">Noch keine Honigsorten hinzugefÃ¼gt.</div>
+                <div className="text-sm text-gray-600">Noch keine Honigsorten hinzugefügt.</div>
               )}
               {honeyTypes.map((h) => (
                 <div key={h.id} className="flex items-center justify-between border border-gray-200 rounded-md p-3">
@@ -413,98 +325,56 @@ export default function MeinBereichPage() {
                     {(h.description || h.unit || h.price) && (
                       <div className="text-sm text-gray-600">
                         {h.description ? `${h.description} ` : ''}
-                        {h.unit ? `â€¢ ${h.unit} ` : ''}
-                        {h.price ? `â€¢ ${h.price}â‚¬` : ''}
+                        {h.unit ? `• ${h.unit} ` : ''}
+                        {h.price ? `• ${h.price}€` : ''}
                       </div>
                     )}
                   </div>
                   <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => toggleHoneyAvailability(h)}
-                      className="px-2 py-1 text-xs rounded-md border border-gray-200 hover:bg-gray-50"
-                    >
+                    <button onClick={() => toggleHoneyAvailability(h)} className="px-2 py-1 text-xs rounded-md border border-gray-200 hover:bg-gray-50">
                       {h.available ? 'Deaktivieren' : 'Aktivieren'}
                     </button>
-                    <button
-                      onClick={() => deleteHoney(h)}
-                      className="px-2 py-1 text-xs rounded-md bg-red-50 text-red-700 hover:bg-red-100"
-                    >
-                      LÃ¶schen
+                    <button onClick={() => deleteHoney(h)} className="px-2 py-1 text-xs rounded-md bg-red-50 text-red-700 hover:bg-red-100">
+                      Löschen
                     </button>
                   </div>
                 </div>
               ))}
             </div>
           </section>
+        </div>
 
         {/* Modals */}
-        <Modal open={showEmailModal} title="Eâ€‘Mail-Adresse Ã¤ndern" onClose={() => setShowEmailModal(false)}>
+        <Modal open={showEmailModal} title="E‑Mail-Adresse ändern" onClose={() => setShowEmailModal(false)}>
           {emailFlowStep === 'request' ? (
             <form className="space-y-3" onSubmit={handleEmailRequest}>
-              <label className="block text-sm font-medium text-gray-700">Neue Eâ€‘Mail-Adresse</label>
-              <input
-                type="email"
-                autoComplete="email"
-                value={emailNew}
-                onChange={(e) => setEmailNew(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
-                required
-              />
+              <label className="block text-sm font-medium text-gray-700">Neue E‑Mail-Adresse</label>
+              <input type="email" autoComplete="email" value={emailNew} onChange={(e) => setEmailNew(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" required />
               <button type="submit" className="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-md">Code senden</button>
             </form>
           ) : (
             <form className="space-y-3" onSubmit={handleEmailConfirm}>
-              <p className="text-sm text-gray-600">Wir haben dir einen Code an deine aktuelle Eâ€‘Mail gesendet.</p>
-              <label className="block text-sm font-medium text-gray-700">BestÃ¤tigungscode</label>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={emailCode}
-                onChange={(e) => setEmailCode(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
-                required
-              />
-              <button type="submit" className="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-md">Eâ€‘Mail Ã¤ndern</button>
+              <p className="text-sm text-gray-600">Wir haben dir einen Code an deine aktuelle E‑Mail gesendet.</p>
+              <label className="block text-sm font-medium text-gray-700">Bestätigungscode</label>
+              <input type="text" inputMode="numeric" value={emailCode} onChange={(e) => setEmailCode(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" required />
+              <button type="submit" className="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-md">E‑Mail ändern</button>
             </form>
           )}
         </Modal>
 
-        <Modal open={showPasswordModal} title="Passwort Ã¤ndern" onClose={() => setShowPasswordModal(false)}>
+        <Modal open={showPasswordModal} title="Passwort ändern" onClose={() => setShowPasswordModal(false)}>
           <form className="space-y-3" onSubmit={handleChangePassword}>
             <div>
               <label className="block text-sm font-medium text-gray-700">Aktuelles Passwort</label>
-              <input
-                type="password"
-                autoComplete="current-password"
-                value={pwCurrent}
-                onChange={(e) => setPwCurrent(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
-                required
-              />
+              <input type="password" autoComplete="current-password" value={pwCurrent} onChange={(e) => setPwCurrent(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" required />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Neues Passwort</label>
-              <input
-                type="password"
-                autoComplete="new-password"
-                value={pwNew}
-                onChange={(e) => setPwNew(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
-                required
-                minLength={8}
-              />
+              <input type="password" autoComplete="new-password" value={pwNew} onChange={(e) => setPwNew(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" required minLength={8} />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Neues Passwort bestÃ¤tigen</label>
-              <input
-                type="password"
-                autoComplete="new-password"
-                value={pwNew2}
-                onChange={(e) => setPwNew2(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
-                required
-                minLength={8}
-              />
+              <label className="block text-sm font-medium text-gray-700">Neues Passwort bestätigen</label>
+              <input type="password" autoComplete="new-password" value={pwNew2} onChange={(e) => setPwNew2(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" required minLength={8} />
             </div>
             <button type="submit" className="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-md">Passwort speichern</button>
           </form>
@@ -513,7 +383,7 @@ export default function MeinBereichPage() {
     </main>
   );
 }
-// Simple modal component
+
 function Modal({ open, title, children, onClose }: { open: boolean; title: string; children: React.ReactNode; onClose: () => void }) {
   if (!open) return null;
   return (
@@ -528,15 +398,4 @@ function Modal({ open, title, children, onClose }: { open: boolean; title: strin
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
 
