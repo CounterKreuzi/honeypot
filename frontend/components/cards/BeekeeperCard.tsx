@@ -16,6 +16,28 @@ export default function BeekeeperCard({ beekeeper, onClick }: BeekeeperCardProps
   // Check if open now (simplified - you can enhance this)
   const isOpenNow = beekeeper.openingHours ? true : false;
 
+  // Format number as Euro price with comma decimals
+  const formatEuro = (n: number) =>
+    n.toLocaleString('de-AT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  // Compute minimum price across all available honey types for given weight
+  const availableHoneys = Array.isArray(beekeeper.honeyTypes)
+    ? beekeeper.honeyTypes.filter((h) => h && h.available)
+    : [];
+
+  const getMinPrice = (
+    key: 'price250' | 'price500' | 'price1000'
+  ): number | null => {
+    const prices = availableHoneys
+      .map((h: any) => h?.[key])
+      .filter((p: any): p is number => typeof p === 'number');
+    return prices.length ? Math.min(...prices) : null;
+  };
+
+  const min250 = getMinPrice('price250');
+  const min500 = getMinPrice('price500');
+  const min1000 = getMinPrice('price1000');
+
   return (
     <div
       onClick={onClick}
@@ -94,19 +116,27 @@ export default function BeekeeperCard({ beekeeper, onClick }: BeekeeperCardProps
             </div>
           )}
 
-          {/* Price Range */}
-          {beekeeper.honeyTypes.some((h) => h.price) && (
-            <div className="mb-3">
-              <span className="text-sm text-gray-600">Ab </span>
-              <span className="text-lg font-bold text-amber-600">
-                €
-                {Math.min(
-                  ...beekeeper.honeyTypes
-                    .filter((h) => h.price)
-                    .map((h) => parseFloat(h.price!))
-                )}
-              </span>
-              <span className="text-sm text-gray-600"> pro Glas</span>
+          {/* Price overview by weight */}
+          {(min250 != null || min500 != null || min1000 != null) && (
+            <div className="mb-3 space-y-1">
+              {min250 != null && (
+                <div className="text-sm text-gray-700">
+                  <span className="text-gray-600">250 g ab </span>
+                  <span className="font-semibold text-amber-600">€ {formatEuro(min250)}</span>
+                </div>
+              )}
+              {min500 != null && (
+                <div className="text-sm text-gray-700">
+                  <span className="text-gray-600">500 g ab </span>
+                  <span className="font-semibold text-amber-600">€ {formatEuro(min500)}</span>
+                </div>
+              )}
+              {min1000 != null && (
+                <div className="text-sm text-gray-700">
+                  <span className="text-gray-600">1000 g ab </span>
+                  <span className="font-semibold text-amber-600">€ {formatEuro(min1000)}</span>
+                </div>
+              )}
             </div>
           )}
 
