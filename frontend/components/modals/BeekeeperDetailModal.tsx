@@ -250,15 +250,50 @@ export default function BeekeeperDetailModal({
                         </p>
                       )}
                     </div>
-                    {honey.price && (
-                      <div className="text-right ml-4">
-                        <div className="flex items-center gap-1 text-amber-700 font-bold text-lg">
-                          <Euro className="w-4 h-4" />
-                          {parseFloat(honey.price).toFixed(2)}
+                    {/* Prices by weight */}
+                    {(() => {
+                      const formatEuro = (n: number) =>
+                        n.toLocaleString('de-AT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                      const toNumber = (v: any): number | null => {
+                        if (v == null) return null;
+                        if (typeof v === 'number' && !isNaN(v)) return v;
+                        if (typeof v === 'string') {
+                          const normalized = v.replace(/\./g, '').replace(',', '.');
+                          const n = parseFloat(normalized);
+                          return isNaN(n) ? null : n;
+                        }
+                        return null;
+                      };
+
+                      const p250 = toNumber((honey as any).price250);
+                      const p500 = toNumber((honey as any).price500);
+                      const p1000 = toNumber((honey as any).price1000);
+
+                      if (p250 == null && p500 == null && p1000 == null) return null;
+
+                      return (
+                        <div className="text-right ml-4 space-y-0.5">
+                          {p250 != null && (
+                            <div className="text-sm text-gray-700">
+                              <span className="text-gray-600">250 g – </span>
+                              <span className="font-semibold text-amber-700">{formatEuro(p250)} €</span>
+                            </div>
+                          )}
+                          {p500 != null && (
+                            <div className="text-sm text-gray-700">
+                              <span className="text-gray-600">500 g – </span>
+                              <span className="font-semibold text-amber-700">{formatEuro(p500)} €</span>
+                            </div>
+                          )}
+                          {p1000 != null && (
+                            <div className="text-sm text-gray-700">
+                              <span className="text-gray-600">1000 g – </span>
+                              <span className="font-semibold text-amber-700">{formatEuro(p1000)} €</span>
+                            </div>
+                          )}
                         </div>
-                        <span className="text-xs text-gray-500">pro Glas</span>
-                      </div>
-                    )}
+                      );
+                    })()}
                   </div>
                 ))}
               </div>

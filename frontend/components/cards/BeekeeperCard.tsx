@@ -22,15 +22,25 @@ export default function BeekeeperCard({ beekeeper, onClick }: BeekeeperCardProps
 
   // Compute minimum price across all available honey types for given weight
   const availableHoneys = Array.isArray(beekeeper.honeyTypes)
-    ? beekeeper.honeyTypes.filter((h) => h && h.available)
+    ? beekeeper.honeyTypes.filter((h) => h && h.available !== false)
     : [];
 
   const getMinPrice = (
     key: 'price250' | 'price500' | 'price1000'
   ): number | null => {
+    const toNumber = (v: any): number | null => {
+      if (v == null) return null;
+      if (typeof v === 'number' && !isNaN(v)) return v;
+      if (typeof v === 'string') {
+        const normalized = v.replace(/\./g, '').replace(',', '.');
+        const n = parseFloat(normalized);
+        return isNaN(n) ? null : n;
+      }
+      return null;
+    };
     const prices = availableHoneys
-      .map((h: any) => h?.[key])
-      .filter((p: any): p is number => typeof p === 'number');
+      .map((h: any) => toNumber(h?.[key]))
+      .filter((p: number | null): p is number => typeof p === 'number');
     return prices.length ? Math.min(...prices) : null;
   };
 
