@@ -27,6 +27,13 @@ interface UserLocation {
   address: string;
 }
 
+const getAvailablePrices = (honeyTypes: Beekeeper['honeyTypes']) =>
+  honeyTypes.flatMap((honey) =>
+    [honey.price250, honey.price500, honey.price1000].filter(
+      (price): price is number => typeof price === 'number' && !Number.isNaN(price)
+    )
+  );
+
 export default function Home() {
   const router = useRouter();
   const {
@@ -165,13 +172,14 @@ export default function Home() {
       }
 
       // Price filter
-      const prices = beekeeper.honeyTypes
-        .map((h) => (h.price ? parseFloat(h.price) : null))
-        .filter((p): p is number => p !== null);
+      const prices = getAvailablePrices(beekeeper.honeyTypes);
 
       if (prices.length > 0) {
-        const minPrice = Math.min(...prices);
-        if (minPrice < filters.priceRange[0] || minPrice > filters.priceRange[1]) {
+        const isWithinRange = prices.some(
+          (price) => price >= filters.priceRange[0] && price <= filters.priceRange[1]
+        );
+
+        if (!isWithinRange) {
           return false;
         }
       }
@@ -202,16 +210,19 @@ export default function Home() {
         case 'name':
           return a.name.localeCompare(b.name);
         case 'price':
-          const aPrice = Math.min(
-            ...a.honeyTypes
-              .map((h) => (h.price ? parseFloat(h.price) : Infinity))
-              .filter((p) => p !== Infinity)
-          );
-          const bPrice = Math.min(
-            ...b.honeyTypes
-              .map((h) => (h.price ? parseFloat(h.price) : Infinity))
-              .filter((p) => p !== Infinity)
-          );
+          const aPrices = getAvailablePrices(a.honeyTypes);
+          const bPrices = getAvailablePrices(b.honeyTypes);
+          const aPrice = aPrices.length > 0 ? Math.min(...aPrices) : Infinity;
+          const bPrice = bPrices.length > 0 ? Math.min(...bPrices) : Infinity;
+          if (!Number.isFinite(aPrice) && !Number.isFinite(bPrice)) {
+            return 0;
+          }
+          if (!Number.isFinite(aPrice)) {
+            return 1;
+          }
+          if (!Number.isFinite(bPrice)) {
+            return -1;
+          }
           return aPrice - bPrice;
         default:
           return 0;

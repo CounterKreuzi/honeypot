@@ -5,7 +5,11 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Beekeeper } from '@/types/api';
 
-delete (L.Icon.Default.prototype as any)._getIconUrl;
+type IconDefaultPrototype = typeof L.Icon.Default.prototype & {
+  _getIconUrl?: () => string;
+};
+
+delete (L.Icon.Default.prototype as IconDefaultPrototype)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
   iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
@@ -28,25 +32,18 @@ export default function BeekeeperMap({
   mapId = 'map',
 }: BeekeeperMapProps) {
   const mapRef = useRef<L.Map | null>(null);
-  const markersRef = useRef<L.Marker[]>([]);
+  const markerLayerRef = useRef<L.LayerGroup | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Cleanup alte Karte wenn vorhanden
-    if (mapRef.current) {
-      mapRef.current.remove();
-      mapRef.current = null;
+    if (!containerRef.current || mapRef.current) {
+      return;
     }
 
-    // Warte bis Container im DOM ist
-    if (!containerRef.current) return;
-
-    // Initialisiere neue Karte
     try {
-      // ✅ FIX 1: Verwende setView ohne Animation
       mapRef.current = L.map(containerRef.current, {
-        zoomAnimation: false, // Deaktiviert Zoom-Animation
-        fadeAnimation: false, // Deaktiviert Fade-Animation
+        zoomAnimation: false,
+        fadeAnimation: false,
       }).setView(center, zoom);
 
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -54,67 +51,86 @@ export default function BeekeeperMap({
         maxZoom: 19,
       }).addTo(mapRef.current);
 
-      // Füge Marker hinzu
-      beekeepers.forEach((beekeeper) => {
-        const lat = typeof beekeeper.latitude === 'string' 
-          ? parseFloat(beekeeper.latitude) 
-          : beekeeper.latitude;
-        const lng = typeof beekeeper.longitude === 'string' 
-          ? parseFloat(beekeeper.longitude) 
-          : beekeeper.longitude;
-
-        if (isNaN(lat) || isNaN(lng)) return;
-
-        const marker = L.marker([lat, lng]).addTo(mapRef.current!);
-
-        const popupContent = `
-          <div class="p-2">
-            <h3 class="font-bold text-lg mb-1">${beekeeper.name}</h3>
-            ${beekeeper.description ? `<p class="text-sm text-gray-600 mb-2">${beekeeper.description.substring(0, 100)}...</p>` : ''}
-            ${beekeeper.distance !== undefined ? `<p class="text-sm font-semibold text-amber-600">📍 ${beekeeper.distance} km entfernt</p>` : ''}
-            <p class="text-sm mt-2">${beekeeper.address}, ${beekeeper.city || ''}</p>
-            ${beekeeper.phone ? `<p class="text-sm">📞 ${beekeeper.phone}</p>` : ''}
-            ${beekeeper.honeyTypes.length > 0 ? `<p class="text-sm mt-2 font-semibold">🍯 ${beekeeper.honeyTypes.length} Honigsorten</p>` : ''}
-          </div>
-        `;
-
-        marker.bindPopup(popupContent);
-
-        if (onMarkerClick) {
-          marker.on('click', () => onMarkerClick(beekeeper));
-        }
-
-        markersRef.current.push(marker);
-      });
-
-      // ✅ FIX 2: fitBounds ohne Animation oder nur für große Karte
-      if (markersRef.current.length > 0 && mapId === 'map-modal') {
-        // Nur in der großen Modal-Karte automatisch zoomen
-        const group = L.featureGroup(markersRef.current);
-        mapRef.current.fitBounds(group.getBounds().pad(0.1), {
-          animate: false, // Keine Animation
-        });
-      }
+      markerLayerRef.current = L.layerGroup().addTo(mapRef.current);
     } catch (error) {
       console.error('Error initializing map:', error);
     }
 
-    // Cleanup
     return () => {
-      markersRef.current.forEach((marker) => marker.remove());
-      markersRef.current = [];
-      
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
       }
+      markerLayerRef.current = null;
     };
-  }, [beekeepers, center, zoom, onMarkerClick, mapId]);
+  }, [center, zoom]);
+
+  useEffect(() => {
+    if (!mapRef.current) {
+      return;
+    }
+
+    mapRef.current.setView(center, zoom, { animate: false });
+  }, [center, zoom]);
+
+  useEffect(() => {
+    if (!mapRef.current || !markerLayerRef.current) {
+      return;
+    }
+
+    markerLayerRef.current.clearLayers();
+
+    const markers: L.Marker[] = [];
+
+    beekeepers.forEach((beekeeper) => {
+      const lat = typeof beekeeper.latitude === 'string'
+        ? parseFloat(beekeeper.latitude)
+        : beekeeper.latitude;
+      const lng = typeof beekeeper.longitude === 'string'
+        ? parseFloat(beekeeper.longitude)
+        : beekeeper.longitude;
+
+      if (isNaN(lat) || isNaN(lng)) return;
+
+      const marker = L.marker([lat, lng]);
+
+      const popupContent = `
+        <div class="p-2">
+          <h3 class="font-bold text-lg mb-1">${beekeeper.name}</h3>
+          ${beekeeper.description ? `<p class="text-sm text-gray-600 mb-2">${beekeeper.description.substring(0, 100)}...</p>` : ''}
+          ${beekeeper.distance !== undefined ? `<p class="text-sm font-semibold text-amber-600">📍 ${beekeeper.distance} km entfernt</p>` : ''}
+          <p class="text-sm mt-2">${beekeeper.address}, ${beekeeper.city || ''}</p>
+          ${beekeeper.phone ? `<p class="text-sm">📞 ${beekeeper.phone}</p>` : ''}
+          ${beekeeper.honeyTypes.length > 0 ? `<p class="text-sm mt-2 font-semibold">🍯 ${beekeeper.honeyTypes.length} Honigsorten</p>` : ''}
+        </div>
+      `;
+
+      marker.bindPopup(popupContent);
+
+      if (onMarkerClick) {
+        marker.on('click', () => onMarkerClick(beekeeper));
+      }
+
+      marker.addTo(markerLayerRef.current!);
+      markers.push(marker);
+    });
+
+    if (markers.length > 0 && mapId === 'map-modal') {
+      const group = L.featureGroup(markers);
+      mapRef.current.fitBounds(group.getBounds().pad(0.1), {
+        animate: false,
+      });
+    }
+
+    return () => {
+      markers.forEach((marker) => marker.off());
+    };
+  }, [beekeepers, onMarkerClick, mapId]);
 
   return (
-    <div 
+    <div
       ref={containerRef}
-      className="w-full h-full rounded-lg shadow-lg" 
+      className="w-full h-full rounded-lg shadow-lg"
     />
   );
 }
