@@ -11,8 +11,10 @@ type IconDefaultPrototype = typeof L.Icon.Default.prototype & {
 
 delete (L.Icon.Default.prototype as IconDefaultPrototype)._getIconUrl;
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  iconRetinaUrl:
+    'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png',
+  iconUrl:
+    'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-orange.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
@@ -22,6 +24,7 @@ interface BeekeeperMapProps {
   zoom?: number;
   onMarkerClick?: (beekeeper: Beekeeper) => void;
   mapId?: string;
+  userLocation?: [number, number];
 }
 
 export default function BeekeeperMap({
@@ -30,6 +33,7 @@ export default function BeekeeperMap({
   zoom = 7,
   onMarkerClick,
   mapId = 'map',
+  userLocation,
 }: BeekeeperMapProps) {
   const mapRef = useRef<L.Map | null>(null);
   const markerLayerRef = useRef<L.LayerGroup | null>(null);
@@ -82,6 +86,30 @@ export default function BeekeeperMap({
 
     const markers: L.Marker[] = [];
 
+    if (userLocation) {
+      const userMarker = L.marker(userLocation, {
+        icon: L.divIcon({
+          className: '',
+          iconSize: [18, 18],
+          iconAnchor: [9, 9],
+          popupAnchor: [0, -9],
+          html: `
+            <div style="
+              width: 18px;
+              height: 18px;
+              border-radius: 9999px;
+              background: #0f172a;
+              box-shadow: 0 0 0 4px rgba(0,0,0,0.1);
+              border: 2px solid white;
+            "></div>
+          `,
+        }),
+      }).bindPopup('<p class="font-semibold">Ihr Standort</p>');
+
+      userMarker.addTo(markerLayerRef.current);
+      markers.push(userMarker);
+    }
+
     beekeepers.forEach((beekeeper) => {
       const lat = typeof beekeeper.latitude === 'string'
         ? parseFloat(beekeeper.latitude)
@@ -115,7 +143,7 @@ export default function BeekeeperMap({
       markers.push(marker);
     });
 
-    if (markers.length > 0 && mapId === 'map-modal') {
+    if (markers.length > 0) {
       const group = L.featureGroup(markers);
       mapRef.current.fitBounds(group.getBounds().pad(0.1), {
         animate: false,
@@ -125,7 +153,7 @@ export default function BeekeeperMap({
     return () => {
       markers.forEach((marker) => marker.off());
     };
-  }, [beekeepers, onMarkerClick, mapId]);
+  }, [beekeepers, onMarkerClick, mapId, userLocation]);
 
   return (
     <div
