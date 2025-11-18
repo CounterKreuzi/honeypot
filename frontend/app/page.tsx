@@ -240,6 +240,12 @@ export default function Home() {
       return false;
     }
 
+
+    // OpenNow filter
+    if (filters.openNow && !beekeeper.openingHours) {
+      return false;
+    }
+
     return true;
   };
 
