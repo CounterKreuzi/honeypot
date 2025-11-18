@@ -11,8 +11,10 @@ type IconDefaultPrototype = typeof L.Icon.Default.prototype & {
 
 delete (L.Icon.Default.prototype as IconDefaultPrototype)._getIconUrl;
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  iconRetinaUrl:
+    'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png',
+  iconUrl:
+    'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-orange.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
@@ -163,7 +165,7 @@ export default function BeekeeperMap({
       markers.push(marker);
     });
 
-    if (markers.length > 0 && mapId === 'map-modal') {
+    if (markers.length > 0) {
       const group = L.featureGroup(markers);
       mapRef.current.fitBounds(group.getBounds().pad(0.1), {
         animate: false,
