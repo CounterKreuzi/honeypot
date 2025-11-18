@@ -121,27 +121,7 @@ export default function BeekeeperMap({
       if (isNaN(lat) || isNaN(lng)) return;
 
       const marker = L.marker([lat, lng], {
-        icon: L.divIcon({
-          className: '',
-          iconSize: [32, 32],
-          iconAnchor: [16, 28],
-          popupAnchor: [0, -28],
-          html: `
-            <div style="
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              width: 32px;
-              height: 32px;
-              border-radius: 12px;
-              background: #f97316;
-              color: white;
-              font-size: 18px;
-              box-shadow: 0 8px 20px rgba(249, 115, 22, 0.35);
-              transform: translate(-2px, -2px);
-            ">🍯</div>
-          `,
-        }),
+        icon: new L.Icon.Default(),
       });
 
       const popupContent = `
