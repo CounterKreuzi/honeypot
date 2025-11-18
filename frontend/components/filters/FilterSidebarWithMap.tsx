@@ -22,6 +22,7 @@ interface FilterSidebarProps {
   onMapExpand: () => void;
   onMarkerClick?: (beekeeper: Beekeeper) => void;
   userLocation?: [number, number];
+  activeBeekeeperIds?: string[];
 }
 
 export interface FilterState {
@@ -45,6 +46,7 @@ export default function FilterSidebar({
   onMapExpand,
   onMarkerClick,
   userLocation,
+  activeBeekeeperIds,
 }: FilterSidebarProps) {
   const [filters, setFilters] = useState<FilterState>({
     honeyTypes: [],
@@ -208,6 +210,8 @@ export default function FilterSidebar({
             zoom={mapZoom}
             mapId="map-sidebar-preview"
             userLocation={userLocation}
+            showPopups={false}
+            activeBeekeeperIds={activeBeekeeperIds}
           />
           
           {/* ✅ Hover Overlay nur für visuelles Feedback */}

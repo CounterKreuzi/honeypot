@@ -22,6 +22,7 @@ interface MapModalProps {
   center?: [number, number];
   zoom?: number;
   userLocation?: [number, number];
+  activeBeekeeperIds?: string[];
 }
 
 export default function MapModal({
@@ -32,6 +33,7 @@ export default function MapModal({
   center,
   zoom,
   userLocation,
+  activeBeekeeperIds,
 }: MapModalProps) {
   // Close modal on ESC key
   useEffect(() => {
@@ -96,6 +98,7 @@ export default function MapModal({
             zoom={zoom}
             mapId="map-modal"
             userLocation={userLocation}
+            activeBeekeeperIds={activeBeekeeperIds}
           />
         </div>
       </div>

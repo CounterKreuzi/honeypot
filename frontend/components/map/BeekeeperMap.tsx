@@ -25,6 +25,8 @@ interface BeekeeperMapProps {
   onMarkerClick?: (beekeeper: Beekeeper) => void;
   mapId?: string;
   userLocation?: [number, number];
+  showPopups?: boolean;
+  activeBeekeeperIds?: string[];
 }
 
 export default function BeekeeperMap({
@@ -34,6 +36,8 @@ export default function BeekeeperMap({
   onMarkerClick,
   mapId = 'map',
   userLocation,
+  showPopups = true,
+  activeBeekeeperIds,
 }: BeekeeperMapProps) {
   const mapRef = useRef<L.Map | null>(null);
   const markerLayerRef = useRef<L.LayerGroup | null>(null);
@@ -106,7 +110,11 @@ export default function BeekeeperMap({
             "></div>
           `,
         }),
-      }).bindPopup('<p class="font-semibold">Ihr Standort</p>');
+      });
+
+      if (showPopups) {
+        userMarker.bindPopup('<p class="font-semibold">Ihr Standort</p>');
+      }
 
       userMarker.addTo(markerLayerRef.current);
       markers.push(userMarker);
@@ -122,8 +130,12 @@ export default function BeekeeperMap({
 
       if (isNaN(lat) || isNaN(lng)) return;
 
+      const isActive = !activeBeekeeperIds || activeBeekeeperIds.includes(beekeeper.id);
+
       const marker = L.marker([lat, lng], {
         icon: new L.Icon.Default(),
+        opacity: isActive ? 1 : 0.6,
+        zIndexOffset: isActive ? 100 : 0,
       });
 
       const popupContent = `
@@ -137,7 +149,9 @@ export default function BeekeeperMap({
         </div>
       `;
 
-      marker.bindPopup(popupContent);
+      if (showPopups) {
+        marker.bindPopup(popupContent);
+      }
 
       if (onMarkerClick) {
         marker.on('click', () => onMarkerClick(beekeeper));
@@ -168,7 +182,7 @@ export default function BeekeeperMap({
     return () => {
       markers.forEach((marker) => marker.off());
     };
-  }, [beekeepers, onMarkerClick, mapId, userLocation]);
+  }, [beekeepers, onMarkerClick, mapId, userLocation, showPopups, activeBeekeeperIds]);
 
   return (
     <div
