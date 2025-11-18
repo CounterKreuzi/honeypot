@@ -38,6 +38,8 @@ export default function BeekeeperMap({
   const mapRef = useRef<L.Map | null>(null);
   const markerLayerRef = useRef<L.LayerGroup | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const hasFittedRef = useRef(false);
+  const previousUserLocationRef = useRef<[number, number] | undefined>();
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) {
@@ -67,7 +69,7 @@ export default function BeekeeperMap({
       }
       markerLayerRef.current = null;
     };
-  }, [center, zoom]);
+  }, []);
 
   useEffect(() => {
     if (!mapRef.current) {
@@ -145,11 +147,22 @@ export default function BeekeeperMap({
       markers.push(marker);
     });
 
-    if (markers.length > 0) {
+    const userLocationChanged =
+      previousUserLocationRef.current?.[0] !== userLocation?.[0] ||
+      previousUserLocationRef.current?.[1] !== userLocation?.[1];
+
+    if (userLocationChanged) {
+      previousUserLocationRef.current = userLocation;
+    }
+
+    const shouldFitBounds = (!hasFittedRef.current || userLocationChanged) && markers.length > 0;
+
+    if (shouldFitBounds) {
       const group = L.featureGroup(markers);
       mapRef.current.fitBounds(group.getBounds().pad(0.1), {
         animate: false,
       });
+      hasFittedRef.current = true;
     }
 
     return () => {
