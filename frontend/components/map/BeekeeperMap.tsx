@@ -22,6 +22,7 @@ interface BeekeeperMapProps {
   zoom?: number;
   onMarkerClick?: (beekeeper: Beekeeper) => void;
   mapId?: string;
+  userLocation?: [number, number];
 }
 
 export default function BeekeeperMap({
@@ -30,6 +31,7 @@ export default function BeekeeperMap({
   zoom = 7,
   onMarkerClick,
   mapId = 'map',
+  userLocation,
 }: BeekeeperMapProps) {
   const mapRef = useRef<L.Map | null>(null);
   const markerLayerRef = useRef<L.LayerGroup | null>(null);
@@ -82,6 +84,30 @@ export default function BeekeeperMap({
 
     const markers: L.Marker[] = [];
 
+    if (userLocation) {
+      const userMarker = L.marker(userLocation, {
+        icon: L.divIcon({
+          className: '',
+          iconSize: [18, 18],
+          iconAnchor: [9, 9],
+          popupAnchor: [0, -9],
+          html: `
+            <div style="
+              width: 18px;
+              height: 18px;
+              border-radius: 9999px;
+              background: #0f172a;
+              box-shadow: 0 0 0 4px rgba(0,0,0,0.1);
+              border: 2px solid white;
+            "></div>
+          `,
+        }),
+      }).bindPopup('<p class="font-semibold">Ihr Standort</p>');
+
+      userMarker.addTo(markerLayerRef.current);
+      markers.push(userMarker);
+    }
+
     beekeepers.forEach((beekeeper) => {
       const lat = typeof beekeeper.latitude === 'string'
         ? parseFloat(beekeeper.latitude)
@@ -92,7 +118,29 @@ export default function BeekeeperMap({
 
       if (isNaN(lat) || isNaN(lng)) return;
 
-      const marker = L.marker([lat, lng]);
+      const marker = L.marker([lat, lng], {
+        icon: L.divIcon({
+          className: '',
+          iconSize: [32, 32],
+          iconAnchor: [16, 28],
+          popupAnchor: [0, -28],
+          html: `
+            <div style="
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              width: 32px;
+              height: 32px;
+              border-radius: 12px;
+              background: #f97316;
+              color: white;
+              font-size: 18px;
+              box-shadow: 0 8px 20px rgba(249, 115, 22, 0.35);
+              transform: translate(-2px, -2px);
+            ">🍯</div>
+          `,
+        }),
+      });
 
       const popupContent = `
         <div class="p-2">
@@ -125,7 +173,7 @@ export default function BeekeeperMap({
     return () => {
       markers.forEach((marker) => marker.off());
     };
-  }, [beekeepers, onMarkerClick, mapId]);
+  }, [beekeepers, onMarkerClick, mapId, userLocation]);
 
   return (
     <div

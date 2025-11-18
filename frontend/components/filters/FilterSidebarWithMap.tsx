@@ -207,6 +207,7 @@ export default function FilterSidebar({
             center={mapCenter}
             zoom={mapZoom}
             mapId="map-sidebar-preview"
+            userLocation={userLocation}
           />
           
           {/* ✅ Hover Overlay nur für visuelles Feedback */}

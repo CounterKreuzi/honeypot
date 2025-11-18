@@ -27,6 +27,25 @@ interface UserLocation {
   address: string;
 }
 
+const calculateDistanceKm = (
+  fromLat: number,
+  fromLng: number,
+  toLat: number,
+  toLng: number
+): number => {
+  const lat1 = fromLat * (Math.PI / 180);
+  const lat2 = toLat * (Math.PI / 180);
+  const deltaLat = (toLat - fromLat) * (Math.PI / 180);
+  const deltaLng = (toLng - fromLng) * (Math.PI / 180);
+
+  const a =
+    Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLng / 2) * Math.sin(deltaLng / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return 6371 * c;
+};
+
 const getAvailablePrices = (honeyTypes: Beekeeper['honeyTypes']) =>
   honeyTypes.flatMap((honey) =>
     [honey.price250, honey.price500, honey.price1000].filter(
@@ -108,27 +127,55 @@ export default function Home() {
     }
 
     console.log('🔍 Standort-Suche gestartet:', location);
-    
+
     setUserLocation(location);
-    
+
     try {
       setLoading(true);
-      
-      const data = await beekeepersApi.searchNearby(
-        location.latitude,
-        location.longitude,
-        filters.maxDistance
+
+      const data = await beekeepersApi.getAll();
+
+      const beekeepersWithDistance = data
+        .map((beekeeper: Beekeeper) => {
+          const beekeeperLat = parseFloat(beekeeper.latitude.toString());
+          const beekeeperLng = parseFloat(beekeeper.longitude.toString());
+
+          if (Number.isNaN(beekeeperLat) || Number.isNaN(beekeeperLng)) {
+            return beekeeper;
+          }
+
+          const distance = calculateDistanceKm(
+            location.latitude,
+            location.longitude,
+            beekeeperLat,
+            beekeeperLng
+          );
+
+          return {
+            ...beekeeper,
+            distance: Math.round(distance * 100) / 100,
+          };
+        })
+        .sort(
+          (a, b) => (a.distance ?? Number.POSITIVE_INFINITY) - (b.distance ?? Number.POSITIVE_INFINITY)
+        );
+
+      console.log(
+        `✅ ${beekeepersWithDistance.filter((b) => (b.distance ?? Infinity) <= filters.maxDistance).length} Imker gefunden im Umkreis von ${filters.maxDistance}km`
       );
-      
-      console.log(`✅ ${data.length} Imker gefunden im Umkreis von ${filters.maxDistance}km`);
-      
-      setBeekeepers(data);
+
+      setBeekeepers(beekeepersWithDistance);
       setError(null);
-      
-      if (data.length === 0) {
-        setError(`Keine Imker im Umkreis von ${filters.maxDistance}km gefunden. Versuche den Suchradius zu erhöhen.`);
+
+      if (
+        beekeepersWithDistance.filter((b) =>
+          b.distance !== undefined ? b.distance <= filters.maxDistance : false
+        ).length === 0
+      ) {
+        setError(
+          `Leider ist im ausgewählten Suchradius kein Imker verfügbar. Suchradius: ${filters.maxDistance}km`
+        );
       }
-      
     } catch (error) {
       console.error('Failed to search beekeepers:', error);
       setError('Fehler bei der Standort-Suche. Bitte versuche es erneut.');
@@ -161,48 +208,55 @@ export default function Home() {
   }, [beekeepers]);
 
   // Filter beekeepers based on current filters
+  const matchesCommonFilters = (beekeeper: Beekeeper) => {
+    // Honey types filter
+    if (
+      filters.honeyTypes.length > 0 &&
+      !beekeeper.honeyTypes.some((honey) => filters.honeyTypes.includes(honey.name))
+    ) {
+      return false;
+    }
+
+    // Price filter
+    const prices = getAvailablePrices(beekeeper.honeyTypes);
+
+    if (prices.length > 0) {
+      const isWithinRange = prices.some(
+        (price) => price >= filters.priceRange[0] && price <= filters.priceRange[1]
+      );
+
+      if (!isWithinRange) {
+        return false;
+      }
+    }
+
+    // Website filter
+    if (filters.hasWebsite && !beekeeper.website) {
+      return false;
+    }
+
+    // OpenNow filter
+    if (filters.openNow && !beekeeper.openingHours) {
+      return false;
+    }
+
+    return true;
+  };
+
   const filteredBeekeepers = useMemo(() => {
-    return beekeepers.filter((beekeeper: Beekeeper) => {
-      // Honey types filter
-      if (
-        filters.honeyTypes.length > 0 &&
-        !beekeeper.honeyTypes.some((honey) => filters.honeyTypes.includes(honey.name))
-      ) {
+    const insideRadius = beekeepers.filter((beekeeper: Beekeeper) => {
+      if (!matchesCommonFilters(beekeeper)) {
         return false;
       }
 
-      // Price filter
-      const prices = getAvailablePrices(beekeeper.honeyTypes);
-
-      if (prices.length > 0) {
-        const isWithinRange = prices.some(
-          (price) => price >= filters.priceRange[0] && price <= filters.priceRange[1]
-        );
-
-        if (!isWithinRange) {
-          return false;
-        }
-      }
-
-      // Distance filter wird bereits im Backend gemacht (searchNearby)
       if (userLocation && beekeeper.distance !== undefined) {
-        if (beekeeper.distance > filters.maxDistance) {
-          return false;
-        }
-      }
-
-      // Website filter
-      if (filters.hasWebsite && !beekeeper.website) {
-        return false;
-      }
-
-      // OpenNow filter
-      if (filters.openNow && !beekeeper.openingHours) {
-        return false;
+        return beekeeper.distance <= filters.maxDistance;
       }
 
       return true;
-    }).sort((a: Beekeeper, b: Beekeeper) => {
+    });
+
+    return insideRadius.sort((a: Beekeeper, b: Beekeeper) => {
       // Sorting logic
       switch (sortBy) {
         case 'distance':
@@ -229,6 +283,32 @@ export default function Home() {
       }
     });
   }, [beekeepers, filters, userLocation, sortBy]);
+
+  const outsideBeekeepers = useMemo(() => {
+    if (!userLocation) {
+      return [];
+    }
+
+    return beekeepers
+      .filter((beekeeper: Beekeeper) => {
+        if (!matchesCommonFilters(beekeeper)) {
+          return false;
+        }
+
+        return beekeeper.distance !== undefined && beekeeper.distance > filters.maxDistance;
+      })
+      .sort(
+        (a: Beekeeper, b: Beekeeper) => (a.distance || Infinity) - (b.distance || Infinity)
+      );
+  }, [beekeepers, filters, userLocation]);
+
+  const mapBeekeepers = useMemo(() => {
+    if (!userLocation) {
+      return filteredBeekeepers;
+    }
+
+    return beekeepers.filter((beekeeper: Beekeeper) => matchesCommonFilters(beekeeper));
+  }, [beekeepers, filteredBeekeepers, filters, userLocation]);
 
   const handleMarkerClick = (beekeeper: Beekeeper) => {
     setSelectedBeekeeper(beekeeper);
@@ -316,7 +396,7 @@ export default function Home() {
               onFilterChange={setFilters}
               availableHoneyTypes={availableHoneyTypes}
               totalResults={filteredBeekeepers.length}
-              beekeepers={filteredBeekeepers}
+              beekeepers={mapBeekeepers}
               onMapExpand={() => setIsMapModalOpen(true)}
               onMarkerClick={handleMarkerClick}
               userLocation={userLocation ? [userLocation.latitude, userLocation.longitude] : undefined}
@@ -371,26 +451,46 @@ export default function Home() {
 
                 {/* Beekeeper Cards Grid */}
                 {filteredBeekeepers.length === 0 ? (
-                  <div className="text-center py-16 bg-white rounded-lg shadow">
-                    <span className="text-6xl mb-4 block">🔍</span>
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                      Keine Imker gefunden
-                    </h3>
-                    <p className="text-gray-600 mb-4">
-                      {userLocation 
-                        ? `Versuche die Filter anzupassen oder erweitere den Suchradius auf mehr als ${filters.maxDistance}km`
-                        : 'Gib einen Standort ein, um Imker in deiner Nähe zu finden'
-                      }
-                    </p>
-                    {userLocation && (
-                      <button
-                        onClick={() =>
-                          setFilters({ ...filters, maxDistance: Math.min(filters.maxDistance + 20, 200) })
-                        }
-                        className="px-6 py-2 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-lg transition-colors"
-                      >
-                        Suchradius erweitern ({filters.maxDistance + 20}km)
-                      </button>
+                  <div className="py-10 bg-white rounded-lg shadow px-4 sm:px-8">
+                    <div className="text-center">
+                      <span className="text-6xl mb-4 block">🔍</span>
+                      <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                        {userLocation
+                          ? 'Leider ist im ausgewählten Suchradius kein Imker verfügbar'
+                          : 'Keine Imker gefunden'}
+                      </h3>
+                      <p className="text-gray-600 mb-4">
+                        {userLocation
+                          ? 'Hier sind die nächsten Imker außerhalb deines Suchradius oder erweitere den Radius, um mehr Ergebnisse zu sehen.'
+                          : 'Gib einen Standort ein, um Imker in deiner Nähe zu finden'}
+                      </p>
+                      {userLocation && (
+                        <button
+                          onClick={() =>
+                            setFilters({ ...filters, maxDistance: Math.min(filters.maxDistance + 20, 200) })
+                          }
+                          className="px-6 py-2 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-lg transition-colors"
+                        >
+                          Suchradius erweitern ({filters.maxDistance + 20}km)
+                        </button>
+                      )}
+                    </div>
+
+                    {userLocation && outsideBeekeepers.length > 0 && (
+                      <div className="mt-8">
+                        <h4 className="text-lg font-semibold text-gray-900 mb-4">
+                          Nächste Imker außerhalb Ihres Suchradius
+                        </h4>
+                        <div className="grid grid-cols-1 gap-4">
+                          {outsideBeekeepers.map((beekeeper: Beekeeper) => (
+                            <BeekeeperCard
+                              key={beekeeper.id}
+                              beekeeper={beekeeper}
+                              onClick={() => handleCardClick(beekeeper)}
+                            />
+                          ))}
+                        </div>
+                      </div>
                     )}
                   </div>
                 ) : (
@@ -414,7 +514,7 @@ export default function Home() {
       <MapModal
         isOpen={isMapModalOpen}
         onClose={() => setIsMapModalOpen(false)}
-        beekeepers={filteredBeekeepers}
+        beekeepers={mapBeekeepers}
         onMarkerClick={handleMarkerClick}
         center={
           userLocation
@@ -422,6 +522,7 @@ export default function Home() {
             : undefined
         }
         zoom={userLocation ? 10 : 7}
+        userLocation={userLocation ? [userLocation.latitude, userLocation.longitude] : undefined}
       />
 
       {/* Beekeeper Detail Modal */}
