@@ -228,12 +228,6 @@ export default function Home() {
       return false;
     }
 
-
-    // OpenNow filter
-    if (filters.openNow && !beekeeper.openingHours) {
-      return false;
-    }
-
     return true;
   };
 
@@ -302,7 +296,15 @@ export default function Home() {
     }
 
     return beekeepers.filter((beekeeper: Beekeeper) => matchesCommonFilters(beekeeper));
-  }, [beekeepers, filteredBeekeepers, filters, userLocation]);
+  }, [
+    beekeepers,
+    filteredBeekeepers,
+    userLocation,
+    filters.honeyTypes,
+    filters.priceRange,
+    filters.hasWebsite,
+    filters.openNow,
+  ]);
 
   const handleMarkerClick = (beekeeper: Beekeeper) => {
     setSelectedBeekeeper(beekeeper);
