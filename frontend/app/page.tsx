@@ -240,6 +240,12 @@ export default function Home() {
       return false;
     }
 
+
+    // OpenNow filter
+    if (filters.openNow && !beekeeper.openingHours) {
+      return false;
+    }
+
     return true;
   };
 
@@ -301,6 +307,14 @@ export default function Home() {
         (a: Beekeeper, b: Beekeeper) => (a.distance || Infinity) - (b.distance || Infinity)
       );
   }, [beekeepers, filters, userLocation]);
+
+  const mapBeekeepers = useMemo(() => {
+    if (!userLocation) {
+      return filteredBeekeepers;
+    }
+
+    return beekeepers.filter((beekeeper: Beekeeper) => matchesCommonFilters(beekeeper));
+  }, [beekeepers, filteredBeekeepers, filters, userLocation]);
 
   const handleMarkerClick = (beekeeper: Beekeeper) => {
     setSelectedBeekeeper(beekeeper);
@@ -388,7 +402,7 @@ export default function Home() {
               onFilterChange={setFilters}
               availableHoneyTypes={availableHoneyTypes}
               totalResults={filteredBeekeepers.length}
-              beekeepers={filteredBeekeepers}
+              beekeepers={mapBeekeepers}
               onMapExpand={() => setIsMapModalOpen(true)}
               onMarkerClick={handleMarkerClick}
               userLocation={userLocation ? [userLocation.latitude, userLocation.longitude] : undefined}
@@ -506,7 +520,7 @@ export default function Home() {
       <MapModal
         isOpen={isMapModalOpen}
         onClose={() => setIsMapModalOpen(false)}
-        beekeepers={filteredBeekeepers}
+        beekeepers={mapBeekeepers}
         onMarkerClick={handleMarkerClick}
         center={
           userLocation
@@ -514,6 +528,7 @@ export default function Home() {
             : undefined
         }
         zoom={userLocation ? 10 : 7}
+        userLocation={userLocation ? [userLocation.latitude, userLocation.longitude] : undefined}
       />
 
       {/* Beekeeper Detail Modal */}

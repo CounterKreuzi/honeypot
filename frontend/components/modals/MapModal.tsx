@@ -21,6 +21,7 @@ interface MapModalProps {
   onMarkerClick?: (beekeeper: Beekeeper) => void;
   center?: [number, number];
   zoom?: number;
+  userLocation?: [number, number];
 }
 
 export default function MapModal({
@@ -30,6 +31,7 @@ export default function MapModal({
   onMarkerClick,
   center,
   zoom,
+  userLocation,
 }: MapModalProps) {
   // Close modal on ESC key
   useEffect(() => {
@@ -93,6 +95,7 @@ export default function MapModal({
             center={center}
             zoom={zoom}
             mapId="map-modal"
+            userLocation={userLocation}
           />
         </div>
       </div>
