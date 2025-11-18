@@ -306,6 +306,11 @@ export default function Home() {
     filters.openNow,
   ]);
 
+  const activeBeekeeperIds = useMemo(
+    () => filteredBeekeepers.map((beekeeper: Beekeeper) => beekeeper.id),
+    [filteredBeekeepers]
+  );
+
   const handleMarkerClick = (beekeeper: Beekeeper) => {
     setSelectedBeekeeper(beekeeper);
     setIsDetailModalOpen(true);
@@ -396,6 +401,7 @@ export default function Home() {
               onMapExpand={() => setIsMapModalOpen(true)}
               onMarkerClick={handleMarkerClick}
               userLocation={userLocation ? [userLocation.latitude, userLocation.longitude] : undefined}
+              activeBeekeeperIds={activeBeekeeperIds}
             />
           </aside>
 
@@ -519,6 +525,7 @@ export default function Home() {
         }
         zoom={userLocation ? 10 : 7}
         userLocation={userLocation ? [userLocation.latitude, userLocation.longitude] : undefined}
+        activeBeekeeperIds={activeBeekeeperIds}
       />
 
       {/* Beekeeper Detail Modal */}
