@@ -184,18 +184,6 @@ export default function Home() {
     }
   };
 
-  // Re-search wenn maxDistance Filter geändert wird (nur wenn Location gesetzt ist)
-  useEffect(() => {
-    if (userLocation) {
-      const timeoutId = setTimeout(() => {
-        handleLocationChange(userLocation);
-      }, 300);
-      
-      return () => clearTimeout(timeoutId);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters.maxDistance]);
-
   // Extract available honey types
   const availableHoneyTypes = useMemo(() => {
     const types = new Set<string>();
