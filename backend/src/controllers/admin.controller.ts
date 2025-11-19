@@ -286,3 +286,33 @@ export const updateBeekeeper = async (
     res.status(500).json({ success: false, message: 'Fehler beim Aktualisieren des Imkers' });
   }
 };
+
+export const deleteBeekeeper = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const beekeeper = await beekeeperRepository.findOne({
+      where: { id },
+      relations: ['user', 'honeyTypes'],
+    });
+
+    if (!beekeeper) {
+      res.status(404).json({ success: false, message: 'Imker nicht gefunden' });
+      return;
+    }
+
+    await AppDataSource.transaction(async (transactionalEntityManager) => {
+      await transactionalEntityManager.remove(Beekeeper, beekeeper);
+      if (beekeeper.user) {
+        await transactionalEntityManager.remove(User, beekeeper.user);
+      }
+    });
+
+    res.json({ success: true, message: 'Imker wurde gelöscht' });
+  } catch (error) {
+    console.error('Delete beekeeper error:', error);
+    res.status(500).json({ success: false, message: 'Fehler beim Löschen des Imkers' });
+  }
+};
