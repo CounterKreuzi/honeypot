@@ -19,6 +19,7 @@ interface Filters {
   maxDistance: number;
   hasWebsite: boolean;
   openNow: boolean;
+  jarSize: 250 | 500 | 1000 | null;
 }
 
 interface UserLocation {
@@ -71,6 +72,7 @@ export default function Home() {
     maxDistance: 50,
     hasWebsite: false,
     openNow: false,
+    jarSize: null,
   });
 
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
@@ -207,13 +209,21 @@ export default function Home() {
 
     // Price filter
     const prices = getAvailablePrices(beekeeper.honeyTypes);
-
     if (prices.length > 0) {
-      const isWithinRange = prices.some(
-        (price) => price >= filters.priceRange[0] && price <= filters.priceRange[1]
-      );
+      const cheapestPrice = Math.min(...prices);
+      if (cheapestPrice < filters.priceRange[0] || cheapestPrice > filters.priceRange[1]) {
+        return false;
+      }
+    }
 
-      if (!isWithinRange) {
+    if (filters.jarSize) {
+      const jarSizeKey = `price${filters.jarSize}` as 'price250' | 'price500' | 'price1000';
+      const hasSelectedSize = beekeeper.honeyTypes.some((honey) => {
+        const priceForSize = honey[jarSizeKey];
+        return typeof priceForSize === 'number' && !Number.isNaN(priceForSize);
+      });
+
+      if (!hasSelectedSize) {
         return false;
       }
     }
@@ -304,6 +314,7 @@ export default function Home() {
     filters.priceRange,
     filters.hasWebsite,
     filters.openNow,
+    filters.jarSize,
   ]);
 
   const activeBeekeeperIds = useMemo(
