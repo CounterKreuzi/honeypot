@@ -1,0 +1,57 @@
+import Joi from 'joi';
+
+const openingHoursSchema = Joi.object({
+  monday: Joi.string().allow('', null),
+  tuesday: Joi.string().allow('', null),
+  wednesday: Joi.string().allow('', null),
+  thursday: Joi.string().allow('', null),
+  friday: Joi.string().allow('', null),
+  saturday: Joi.string().allow('', null),
+  sunday: Joi.string().allow('', null),
+}).allow(null);
+
+export const adminCreateBeekeeperSchema = Joi.object({
+  email: Joi.string().email().required(),
+  password: Joi.string().min(8).required(),
+  name: Joi.string().min(2).max(100).required(),
+  salutation: Joi.string().max(20).allow('', null),
+  firstName: Joi.string().max(100).allow('', null),
+  lastName: Joi.string().max(100).allow('', null),
+  companyName: Joi.string().max(150).allow('', null),
+  description: Joi.string().max(2000).allow('', null),
+  address: Joi.string().min(5).max(200).required(),
+  city: Joi.string().max(100).allow('', null),
+  postalCode: Joi.string().max(20).allow('', null),
+  country: Joi.string().max(100).allow('', null),
+  latitude: Joi.number().min(-90).max(90).optional(),
+  longitude: Joi.number().min(-180).max(180).optional(),
+  phone: Joi.string().max(50).allow('', null),
+  customerPhone: Joi.string().max(50).allow('', null),
+  adminPhone: Joi.string().max(50).allow('', null),
+  website: Joi.string().uri().allow('', null),
+  openingHours: openingHoursSchema,
+  isActive: Joi.boolean().optional(),
+  isVerified: Joi.boolean().optional(),
+});
+
+export const adminUpdateBeekeeperSchema = Joi.object({
+  name: Joi.string().min(2).max(100),
+  salutation: Joi.string().max(20).allow('', null),
+  firstName: Joi.string().max(100).allow('', null),
+  lastName: Joi.string().max(100).allow('', null),
+  companyName: Joi.string().max(150).allow('', null),
+  description: Joi.string().max(2000).allow('', null),
+  address: Joi.string().min(5).max(200),
+  city: Joi.string().max(100).allow('', null),
+  postalCode: Joi.string().max(20).allow('', null),
+  country: Joi.string().max(100).allow('', null),
+  latitude: Joi.number().min(-90).max(90),
+  longitude: Joi.number().min(-180).max(180),
+  phone: Joi.string().max(50).allow('', null),
+  customerPhone: Joi.string().max(50).allow('', null),
+  adminPhone: Joi.string().max(50).allow('', null),
+  website: Joi.string().uri().allow('', null),
+  openingHours: openingHoursSchema,
+  isActive: Joi.boolean(),
+  isVerified: Joi.boolean(),
+}).min(1);
