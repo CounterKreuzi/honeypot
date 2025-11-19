@@ -1,6 +1,6 @@
 'use client';
 
-import { ChangeEvent, FormEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { ChangeEvent, FormEvent, ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { authApi } from '@/lib/api/auth';
 import {
@@ -119,6 +119,7 @@ export default function AdminDashboardPage() {
   const [adminEmail, setAdminEmail] = useState('');
 
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>('all');
   const [verifiedFilter, setVerifiedFilter] = useState<VerifiedFilter>('all');
 
@@ -137,9 +138,19 @@ export default function AdminDashboardPage() {
   const [createFeedback, setCreateFeedback] = useState<string | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const activeFilterValue = activeFilter === 'all' ? undefined : activeFilter === 'active';
   const verifiedFilterValue = verifiedFilter === 'all' ? undefined : verifiedFilter === 'verified';
+  const searchQuery = debouncedSearch.trim() || undefined;
+
+  useEffect(() => {
+    const timeout = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timeout);
+  }, [search]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -177,7 +188,7 @@ export default function AdminDashboardPage() {
         const response = await adminApi.listBeekeepers({
           page: pageToLoad,
           limit: PAGE_SIZE,
-          search: search.trim() || undefined,
+          search: searchQuery,
           isActive: activeFilterValue,
           isVerified: verifiedFilterValue,
         });
@@ -200,7 +211,7 @@ export default function AdminDashboardPage() {
         setListLoading(false);
       }
     },
-    [activeFilterValue, search, verifiedFilterValue]
+    [activeFilterValue, searchQuery, verifiedFilterValue]
   );
 
   const loadBeekeepersRef = useRef(loadBeekeepers);
@@ -209,10 +220,9 @@ export default function AdminDashboardPage() {
   }, [loadBeekeepers]);
 
   useEffect(() => {
-    if (authState === 'allowed') {
-      loadBeekeepersRef.current?.(1);
-    }
-  }, [authState]);
+    if (authState !== 'allowed') return;
+    loadBeekeepersRef.current?.(1);
+  }, [activeFilterValue, authState, searchQuery, verifiedFilterValue]);
 
   useEffect(() => {
     if (!selected) {
@@ -242,12 +252,6 @@ export default function AdminDashboardPage() {
     setEditFeedback(null);
     setEditError(null);
   }, [selected]);
-
-  const handleSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (authState !== 'allowed') return;
-    loadBeekeepersRef.current?.(1);
-  };
 
   const handleEditInputChange = (
     event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -374,6 +378,53 @@ export default function AdminDashboardPage() {
     }
   };
 
+  const handleDeleteBeekeeper = async () => {
+    if (!selected) return;
+    const confirmed = window.confirm(
+      'Dieser Eintrag wird unwiderruflich gelöscht. Möchtest du fortfahren?'
+    );
+    if (!confirmed) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await adminApi.deleteBeekeeper(selected.id);
+      setIsEditModalOpen(false);
+      loadBeekeepersRef.current?.(1);
+    } catch (error: any) {
+      setDeleteError(error?.response?.data?.message || 'Löschen fehlgeschlagen.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const openEditModal = (beekeeper: AdminBeekeeper) => {
+    setSelected(beekeeper);
+    setEditFeedback(null);
+    setEditError(null);
+    setDeleteError(null);
+    setIsEditModalOpen(true);
+  };
+
+  const closeEditModal = () => {
+    setIsEditModalOpen(false);
+    setEditFeedback(null);
+    setEditError(null);
+    setDeleteError(null);
+  };
+
+  const openCreateModal = () => {
+    setCreateForm(emptyCreateForm);
+    setCreateFeedback(null);
+    setCreateError(null);
+    setIsCreateModalOpen(true);
+  };
+
+  const closeCreateModal = () => {
+    setIsCreateModalOpen(false);
+    setCreateError(null);
+    setCreateFeedback(null);
+  };
+
   const handleChangePage = (direction: 'prev' | 'next') => {
     if (direction === 'prev' && pagination.page > 1) {
       loadBeekeepersRef.current?.(pagination.page - 1);
@@ -435,7 +486,7 @@ export default function AdminDashboardPage() {
         </header>
 
         <section className="bg-white shadow rounded-2xl p-6 mb-8 border border-amber-100">
-          <form className="grid gap-4 md:grid-cols-[2fr_1fr_1fr_auto]" onSubmit={handleSearchSubmit}>
+          <div className="grid gap-4 md:grid-cols-[2fr_1fr_1fr_auto]">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Suche</label>
               <input
@@ -471,52 +522,59 @@ export default function AdminDashboardPage() {
                 <option value="unverified">Nicht verifizierte</option>
               </select>
             </div>
-            <div className="flex items-end gap-3">
-              <button
-                type="submit"
-                className="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-semibold px-4 py-2 rounded-lg"
-              >
-                Filter anwenden
-              </button>
+            <div className="flex items-end">
               <button
                 type="button"
                 onClick={() => {
                   setSearch('');
                   setActiveFilter('all');
                   setVerifiedFilter('all');
-                  loadBeekeepersRef.current?.(1);
                 }}
-                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700"
+                className="w-full px-4 py-2 rounded-lg border border-gray-300 text-gray-700"
               >
                 Reset
               </button>
             </div>
-          </form>
+          </div>
           {listError && (
             <p className="mt-4 text-sm text-red-600">{listError}</p>
           )}
         </section>
 
-        <div className="grid gap-8 lg:grid-cols-[2fr_1fr]">
-          <section className="bg-white shadow rounded-2xl border border-gray-100 overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">Alle Imker</h2>
-                <p className="text-sm text-gray-500">
-                  {pagination.total} Einträge · Seite {pagination.page} von {pagination.totalPages}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => loadBeekeepersRef.current?.(pagination.page)}
-                className="text-sm font-medium text-amber-700 hover:underline"
-              >
-                Aktualisieren
-              </button>
-            </div>
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between mb-4">
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900">Alle Imker</h2>
+            <p className="text-sm text-gray-500">
+              {pagination.total} Einträge · Seite {pagination.page} von {pagination.totalPages}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={() => loadBeekeepersRef.current?.(pagination.page)}
+              className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700"
+            >
+              Aktualisieren
+            </button>
+            <button
+              type="button"
+              onClick={openCreateModal}
+              className="px-4 py-2 rounded-lg bg-amber-600 text-white font-semibold"
+            >
+              Neuen Imker anlegen
+            </button>
+          </div>
+        </div>
 
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
+        <section className="bg-white shadow rounded-2xl border border-gray-100 overflow-hidden">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <p className="text-sm text-gray-600">
+              Klicke auf einen Eintrag, um Details hervorzuheben, oder nutze die Aktionen zum Bearbeiten.
+            </p>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
                 <thead className="bg-amber-50 text-amber-900 uppercase text-xs tracking-wide">
                   <tr>
                     <th className="px-4 py-3 text-left">Name</th>
@@ -525,6 +583,7 @@ export default function AdminDashboardPage() {
                     <th className="px-4 py-3 text-left">Verifiziert</th>
                     <th className="px-4 py-3 text-left">Ort</th>
                     <th className="px-4 py-3 text-left">Aktualisiert</th>
+                    <th className="px-4 py-3 text-left">Aktion</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -584,6 +643,20 @@ export default function AdminDashboardPage() {
                             ? new Date(beekeeper.updatedAt).toLocaleDateString('de-DE')
                             : '—'}
                         </td>
+                        <td className="px-4 py-3">
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                openEditModal(beekeeper);
+                              }}
+                              className="px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 text-xs font-medium"
+                            >
+                              Bearbeiten
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     );
                   })}
@@ -615,414 +688,432 @@ export default function AdminDashboardPage() {
                 Weiter
               </button>
             </div>
-          </section>
+        </section>
+      </div>
 
-          <aside className="space-y-8">
-            <section className="bg-white shadow rounded-2xl border border-gray-100 p-6">
-              <div className="flex items-center justify-between mb-4">
+      <Modal isOpen={isEditModalOpen && !!selected} onClose={closeEditModal} title="Imker bearbeiten">
+        {selected ? (
+          <>
+            <p className="text-sm text-gray-500 mb-4">
+              ID {selected.id.slice(0, 8)}… · {selected.user?.email || 'Keine E-Mail hinterlegt'}
+            </p>
+            <form className="space-y-4" onSubmit={handleUpdateBeekeeper}>
+              <div className="grid grid-cols-1 gap-4">
                 <div>
-                  <h2 className="text-lg font-semibold text-gray-900">Details & Bearbeitung</h2>
-                  <p className="text-sm text-gray-500">Direktes Update des aktiven Eintrags</p>
+                  <label className="text-sm font-medium text-gray-700">Name</label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={editForm.name}
+                    onChange={handleEditInputChange}
+                    required
+                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                  />
                 </div>
-                <span className="text-sm font-medium text-amber-700">
-                  {selected ? 'ID ' + selected.id.slice(0, 8) + '…' : 'Kein Eintrag ausgewählt'}
-                </span>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Anrede</label>
+                    <input
+                      type="text"
+                      name="salutation"
+                      value={editForm.salutation}
+                      onChange={handleEditInputChange}
+                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Firma</label>
+                    <input
+                      type="text"
+                      name="companyName"
+                      value={editForm.companyName}
+                      onChange={handleEditInputChange}
+                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Vorname</label>
+                    <input
+                      type="text"
+                      name="firstName"
+                      value={editForm.firstName}
+                      onChange={handleEditInputChange}
+                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Nachname</label>
+                    <input
+                      type="text"
+                      name="lastName"
+                      value={editForm.lastName}
+                      onChange={handleEditInputChange}
+                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Beschreibung</label>
+                  <textarea
+                    name="description"
+                    value={editForm.description}
+                    onChange={handleEditInputChange}
+                    rows={3}
+                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Adresse</label>
+                  <input
+                    type="text"
+                    name="address"
+                    value={editForm.address}
+                    onChange={handleEditInputChange}
+                    required
+                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                  />
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">PLZ</label>
+                    <input
+                      type="text"
+                      name="postalCode"
+                      value={editForm.postalCode}
+                      onChange={handleEditInputChange}
+                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Stadt</label>
+                    <input
+                      type="text"
+                      name="city"
+                      value={editForm.city}
+                      onChange={handleEditInputChange}
+                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Land</label>
+                    <input
+                      type="text"
+                      name="country"
+                      value={editForm.country}
+                      onChange={handleEditInputChange}
+                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Telefon (öffentlich)</label>
+                    <input
+                      type="text"
+                      name="phone"
+                      value={editForm.phone}
+                      onChange={handleEditInputChange}
+                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Telefon (Kund*innen)</label>
+                    <input
+                      type="text"
+                      name="customerPhone"
+                      value={editForm.customerPhone}
+                      onChange={handleEditInputChange}
+                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Telefon (intern)</label>
+                  <input
+                    type="text"
+                    name="adminPhone"
+                    value={editForm.adminPhone}
+                    onChange={handleEditInputChange}
+                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Website</label>
+                  <input
+                    type="url"
+                    name="website"
+                    value={editForm.website}
+                    onChange={handleEditInputChange}
+                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Latitude</label>
+                    <input
+                      type="text"
+                      name="latitude"
+                      value={editForm.latitude}
+                      onChange={handleEditInputChange}
+                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Longitude</label>
+                    <input
+                      type="text"
+                      name="longitude"
+                      value={editForm.longitude}
+                      onChange={handleEditInputChange}
+                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-4">
+                  <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                    <input
+                      type="checkbox"
+                      name="isActive"
+                      checked={editForm.isActive}
+                      onChange={handleEditCheckboxChange}
+                    />
+                    Aktiv gelistet
+                  </label>
+                  <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                    <input
+                      type="checkbox"
+                      name="isVerified"
+                      checked={editForm.isVerified}
+                      onChange={handleEditCheckboxChange}
+                    />
+                    Verifiziert
+                  </label>
+                </div>
               </div>
-              {!selected && (
-                <p className="text-sm text-gray-500">Wähle links einen Eintrag, um die Details zu bearbeiten.</p>
-              )}
-              {selected && (
-                <>
-                  <div className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
-                    <p>
-                      <span className="font-semibold">E-Mail:</span> {selected.user?.email || '—'}
-                    </p>
-                    <p>
-                      <span className="font-semibold">Honigsorten:</span> {selected.honeyTypes?.length || 0}
-                    </p>
-                  </div>
-                  <form className="space-y-4" onSubmit={handleUpdateBeekeeper}>
-                    <div className="grid grid-cols-1 gap-4">
-                      <div>
-                        <label className="text-sm font-medium text-gray-700">Name</label>
-                        <input
-                          type="text"
-                          name="name"
-                          value={editForm.name}
-                          onChange={handleEditInputChange}
-                          required
-                          className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="text-sm font-medium text-gray-700">Anrede</label>
-                          <input
-                            type="text"
-                            name="salutation"
-                            value={editForm.salutation}
-                            onChange={handleEditInputChange}
-                            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium text-gray-700">Firma</label>
-                          <input
-                            type="text"
-                            name="companyName"
-                            value={editForm.companyName}
-                            onChange={handleEditInputChange}
-                            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
-                          />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="text-sm font-medium text-gray-700">Vorname</label>
-                          <input
-                            type="text"
-                            name="firstName"
-                            value={editForm.firstName}
-                            onChange={handleEditInputChange}
-                            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium text-gray-700">Nachname</label>
-                          <input
-                            type="text"
-                            name="lastName"
-                            value={editForm.lastName}
-                            onChange={handleEditInputChange}
-                            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-gray-700">Beschreibung</label>
-                        <textarea
-                          name="description"
-                          value={editForm.description}
-                          onChange={handleEditInputChange}
-                          rows={3}
-                          className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-gray-700">Adresse</label>
-                        <input
-                          type="text"
-                          name="address"
-                          value={editForm.address}
-                          onChange={handleEditInputChange}
-                          required
-                          className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
-                        />
-                      </div>
-                      <div className="grid grid-cols-3 gap-4">
-                        <div>
-                          <label className="text-sm font-medium text-gray-700">PLZ</label>
-                          <input
-                            type="text"
-                            name="postalCode"
-                            value={editForm.postalCode}
-                            onChange={handleEditInputChange}
-                            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium text-gray-700">Stadt</label>
-                          <input
-                            type="text"
-                            name="city"
-                            value={editForm.city}
-                            onChange={handleEditInputChange}
-                            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium text-gray-700">Land</label>
-                          <input
-                            type="text"
-                            name="country"
-                            value={editForm.country}
-                            onChange={handleEditInputChange}
-                            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
-                          />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="text-sm font-medium text-gray-700">Telefon (öffentlich)</label>
-                          <input
-                            type="text"
-                            name="phone"
-                            value={editForm.phone}
-                            onChange={handleEditInputChange}
-                            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium text-gray-700">Telefon (Kund*innen)</label>
-                          <input
-                            type="text"
-                            name="customerPhone"
-                            value={editForm.customerPhone}
-                            onChange={handleEditInputChange}
-                            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-gray-700">Telefon (intern)</label>
-                        <input
-                          type="text"
-                          name="adminPhone"
-                          value={editForm.adminPhone}
-                          onChange={handleEditInputChange}
-                          className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-gray-700">Website</label>
-                        <input
-                          type="url"
-                          name="website"
-                          value={editForm.website}
-                          onChange={handleEditInputChange}
-                          className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="text-sm font-medium text-gray-700">Latitude</label>
-                          <input
-                            type="text"
-                            name="latitude"
-                            value={editForm.latitude}
-                            onChange={handleEditInputChange}
-                            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium text-gray-700">Longitude</label>
-                          <input
-                            type="text"
-                            name="longitude"
-                            value={editForm.longitude}
-                            onChange={handleEditInputChange}
-                            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
-                          />
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                          <input
-                            type="checkbox"
-                            name="isActive"
-                            checked={editForm.isActive}
-                            onChange={handleEditCheckboxChange}
-                          />
-                          Aktiv gelistet
-                        </label>
-                        <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                          <input
-                            type="checkbox"
-                            name="isVerified"
-                            checked={editForm.isVerified}
-                            onChange={handleEditCheckboxChange}
-                          />
-                          Verifiziert
-                        </label>
-                      </div>
-                      {editError && (
-                        <p className="text-sm text-red-600">{editError}</p>
-                      )}
-                      {editFeedback && (
-                        <p className="text-sm text-emerald-600">{editFeedback}</p>
-                      )}
-                      <button
-                        type="submit"
-                        className="w-full rounded-lg bg-amber-600 py-2.5 text-white font-semibold disabled:opacity-50"
-                        disabled={savingEdit}
-                      >
-                        {savingEdit ? 'Speichere ...' : 'Änderungen speichern'}
-                      </button>
-                    </div>
-                  </form>
-                </>
-              )}
-            </section>
-
-            <section className="bg-white shadow rounded-2xl border border-gray-100 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Neuen Imker anlegen</h2>
-              <form className="space-y-4" onSubmit={handleCreateBeekeeper}>
-                <div className="grid grid-cols-1 gap-4">
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">E-Mail</label>
-                    <input
-                      type="email"
-                      name="email"
-                      value={createForm.email}
-                      onChange={handleCreateInputChange}
-                      required
-                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Initiales Passwort</label>
-                    <input
-                      type="password"
-                      name="password"
-                      value={createForm.password}
-                      onChange={handleCreateInputChange}
-                      required
-                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Name</label>
-                    <input
-                      type="text"
-                      name="name"
-                      value={createForm.name}
-                      onChange={handleCreateInputChange}
-                      required
-                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Adresse</label>
-                    <input
-                      type="text"
-                      name="address"
-                      value={createForm.address}
-                      onChange={handleCreateInputChange}
-                      required
-                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Stadt</label>
-                      <input
-                        type="text"
-                        name="city"
-                        value={createForm.city}
-                        onChange={handleCreateInputChange}
-                        className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">PLZ</label>
-                      <input
-                        type="text"
-                        name="postalCode"
-                        value={createForm.postalCode}
-                        onChange={handleCreateInputChange}
-                        className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Beschreibung</label>
-                    <textarea
-                      name="description"
-                      value={createForm.description}
-                      onChange={handleCreateInputChange}
-                      rows={3}
-                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Telefon (öffentlich)</label>
-                      <input
-                        type="text"
-                        name="phone"
-                        value={createForm.phone}
-                        onChange={handleCreateInputChange}
-                        className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Telefon (Kund*innen)</label>
-                      <input
-                        type="text"
-                        name="customerPhone"
-                        value={createForm.customerPhone}
-                        onChange={handleCreateInputChange}
-                        className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Telefon (intern)</label>
-                    <input
-                      type="text"
-                      name="adminPhone"
-                      value={createForm.adminPhone}
-                      onChange={handleCreateInputChange}
-                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Latitude</label>
-                      <input
-                        type="text"
-                        name="latitude"
-                        value={createForm.latitude}
-                        onChange={handleCreateInputChange}
-                        className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Longitude</label>
-                      <input
-                        type="text"
-                        name="longitude"
-                        value={createForm.longitude}
-                        onChange={handleCreateInputChange}
-                        className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                      <input
-                        type="checkbox"
-                        name="isActive"
-                        checked={createForm.isActive}
-                        onChange={handleCreateCheckboxChange}
-                      />
-                      Sofort sichtbar
-                    </label>
-                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                      <input
-                        type="checkbox"
-                        name="isVerified"
-                        checked={createForm.isVerified}
-                        onChange={handleCreateCheckboxChange}
-                      />
-                      Bereits verifiziert
-                    </label>
-                  </div>
-                </div>
-                {createError && <p className="text-sm text-red-600">{createError}</p>}
-                {createFeedback && <p className="text-sm text-emerald-600">{createFeedback}</p>}
+              {editError && <p className="text-sm text-red-600">{editError}</p>}
+              {editFeedback && <p className="text-sm text-emerald-600">{editFeedback}</p>}
+              {deleteError && <p className="text-sm text-red-600">{deleteError}</p>}
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={handleDeleteBeekeeper}
+                  disabled={deleting}
+                  className="w-full rounded-lg border border-red-200 px-4 py-2 text-red-600 font-semibold disabled:opacity-50"
+                >
+                  {deleting ? 'Lösche ...' : 'Eintrag löschen'}
+                </button>
                 <button
                   type="submit"
                   className="w-full rounded-lg bg-amber-600 py-2.5 text-white font-semibold disabled:opacity-50"
-                  disabled={creating}
+                  disabled={savingEdit}
                 >
-                  {creating ? 'Lege an ...' : 'Imker erstellen'}
+                  {savingEdit ? 'Speichere ...' : 'Änderungen speichern'}
                 </button>
-              </form>
-            </section>
-          </aside>
-        </div>
-      </div>
+              </div>
+            </form>
+          </>
+        ) : (
+          <p className="text-sm text-gray-500">Kein Eintrag ausgewählt.</p>
+        )}
+      </Modal>
+
+      <Modal isOpen={isCreateModalOpen} onClose={closeCreateModal} title="Neuen Imker anlegen">
+        <form className="space-y-4" onSubmit={handleCreateBeekeeper}>
+          <div className="grid grid-cols-1 gap-4">
+            <div>
+              <label className="text-sm font-medium text-gray-700">E-Mail</label>
+              <input
+                type="email"
+                name="email"
+                value={createForm.email}
+                onChange={handleCreateInputChange}
+                required
+                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700">Initiales Passwort</label>
+              <input
+                type="password"
+                name="password"
+                value={createForm.password}
+                onChange={handleCreateInputChange}
+                required
+                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700">Name</label>
+              <input
+                type="text"
+                name="name"
+                value={createForm.name}
+                onChange={handleCreateInputChange}
+                required
+                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700">Adresse</label>
+              <input
+                type="text"
+                name="address"
+                value={createForm.address}
+                onChange={handleCreateInputChange}
+                required
+                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700">Stadt</label>
+                <input
+                  type="text"
+                  name="city"
+                  value={createForm.city}
+                  onChange={handleCreateInputChange}
+                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700">PLZ</label>
+                <input
+                  type="text"
+                  name="postalCode"
+                  value={createForm.postalCode}
+                  onChange={handleCreateInputChange}
+                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700">Beschreibung</label>
+              <textarea
+                name="description"
+                value={createForm.description}
+                onChange={handleCreateInputChange}
+                rows={3}
+                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700">Telefon (öffentlich)</label>
+                <input
+                  type="text"
+                  name="phone"
+                  value={createForm.phone}
+                  onChange={handleCreateInputChange}
+                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700">Telefon (Kund*innen)</label>
+                <input
+                  type="text"
+                  name="customerPhone"
+                  value={createForm.customerPhone}
+                  onChange={handleCreateInputChange}
+                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700">Telefon (intern)</label>
+              <input
+                type="text"
+                name="adminPhone"
+                value={createForm.adminPhone}
+                onChange={handleCreateInputChange}
+                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700">Latitude</label>
+                <input
+                  type="text"
+                  name="latitude"
+                  value={createForm.latitude}
+                  onChange={handleCreateInputChange}
+                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700">Longitude</label>
+                <input
+                  type="text"
+                  name="longitude"
+                  value={createForm.longitude}
+                  onChange={handleCreateInputChange}
+                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                <input
+                  type="checkbox"
+                  name="isActive"
+                  checked={createForm.isActive}
+                  onChange={handleCreateCheckboxChange}
+                />
+                Sofort sichtbar
+              </label>
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                <input
+                  type="checkbox"
+                  name="isVerified"
+                  checked={createForm.isVerified}
+                  onChange={handleCreateCheckboxChange}
+                />
+                Bereits verifiziert
+              </label>
+            </div>
+          </div>
+          {createError && <p className="text-sm text-red-600">{createError}</p>}
+          {createFeedback && <p className="text-sm text-emerald-600">{createFeedback}</p>}
+          <button
+            type="submit"
+            className="w-full rounded-lg bg-amber-600 py-2.5 text-white font-semibold disabled:opacity-50"
+            disabled={creating}
+          >
+            {creating ? 'Lege an ...' : 'Imker erstellen'}
+          </button>
+        </form>
+      </Modal>
     </main>
+  );
+}
+
+function Modal({ isOpen, onClose, title, children }: {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  children: ReactNode;
+}) {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-8">
+      <div className="relative w-full max-w-3xl max-h-full overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
+        <div className="flex items-start justify-between gap-4 border-b border-gray-100 pb-4">
+          <div>
+            <p className="text-sm font-medium text-amber-700 uppercase tracking-wide">Admin</p>
+            <h3 className="text-2xl font-semibold text-gray-900">{title}</h3>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full border border-gray-200 p-2 text-gray-500 hover:text-gray-900"
+            aria-label="Modal schließen"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="pt-4">{children}</div>
+      </div>
+    </div>
   );
 }
