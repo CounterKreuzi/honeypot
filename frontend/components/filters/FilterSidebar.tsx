@@ -154,11 +154,13 @@ export default function FilterSidebar({
               <Euro className="w-5 h-5 text-gray-600" />
               <div className="flex items-center gap-1">
                 <span className="font-medium text-gray-900">Preis</span>
-                <Info
-                  className="w-4 h-4 text-gray-400"
+                <span
+                  className="inline-flex"
                   title="Gefiltert wird nach dem günstigsten Preis für die ausgewählten Mengen"
                   aria-label="Gefiltert wird nach dem günstigsten Preis für die ausgewählten Mengen"
-                />
+                >
+                  <Info className="w-4 h-4 text-gray-400" aria-hidden="true" focusable="false" />
+                </span>
               </div>
             </div>
             {expandedSections.price ? (
