@@ -45,7 +45,7 @@ export interface Beekeeper {
   country?: string;
   phone?: string;
   website?: string;
-  openingHours?: OpeningHours;
+  openingHours?: OpeningHours | null;
   isActive: boolean;
   honeyTypes: HoneyType[];
   distance?: number;
