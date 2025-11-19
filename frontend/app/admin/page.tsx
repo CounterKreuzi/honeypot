@@ -1,0 +1,1028 @@
+'use client';
+
+import { ChangeEvent, FormEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { authApi } from '@/lib/api/auth';
+import {
+  adminApi,
+  AdminBeekeeper,
+  AdminCreateBeekeeperPayload,
+  AdminUpdateBeekeeperPayload,
+} from '@/lib/api/admin';
+
+const PAGE_SIZE = 20;
+
+type ActiveFilter = 'all' | 'active' | 'inactive';
+type VerifiedFilter = 'all' | 'verified' | 'unverified';
+
+type AuthState = 'checking' | 'allowed' | 'denied';
+
+interface EditFormState {
+  name: string;
+  salutation: string;
+  firstName: string;
+  lastName: string;
+  companyName: string;
+  description: string;
+  address: string;
+  city: string;
+  postalCode: string;
+  country: string;
+  phone: string;
+  customerPhone: string;
+  adminPhone: string;
+  website: string;
+  latitude: string;
+  longitude: string;
+  isActive: boolean;
+  isVerified: boolean;
+}
+
+interface CreateFormState {
+  email: string;
+  password: string;
+  name: string;
+  salutation: string;
+  firstName: string;
+  lastName: string;
+  companyName: string;
+  description: string;
+  address: string;
+  city: string;
+  postalCode: string;
+  country: string;
+  phone: string;
+  customerPhone: string;
+  adminPhone: string;
+  website: string;
+  latitude: string;
+  longitude: string;
+  isActive: boolean;
+  isVerified: boolean;
+}
+
+const emptyEditForm: EditFormState = {
+  name: '',
+  salutation: '',
+  firstName: '',
+  lastName: '',
+  companyName: '',
+  description: '',
+  address: '',
+  city: '',
+  postalCode: '',
+  country: '',
+  phone: '',
+  customerPhone: '',
+  adminPhone: '',
+  website: '',
+  latitude: '',
+  longitude: '',
+  isActive: true,
+  isVerified: false,
+};
+
+const emptyCreateForm: CreateFormState = {
+  email: '',
+  password: '',
+  name: '',
+  salutation: '',
+  firstName: '',
+  lastName: '',
+  companyName: '',
+  description: '',
+  address: '',
+  city: '',
+  postalCode: '',
+  country: '',
+  phone: '',
+  customerPhone: '',
+  adminPhone: '',
+  website: '',
+  latitude: '',
+  longitude: '',
+  isActive: true,
+  isVerified: false,
+};
+
+const numberFromInput = (value: string): number | undefined => {
+  const normalized = value.replace(',', '.').trim();
+  if (!normalized) return undefined;
+  const parsed = Number(normalized);
+  return Number.isNaN(parsed) ? undefined : parsed;
+};
+
+export default function AdminDashboardPage() {
+  const router = useRouter();
+  const [authState, setAuthState] = useState<AuthState>('checking');
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [adminEmail, setAdminEmail] = useState('');
+
+  const [search, setSearch] = useState('');
+  const [activeFilter, setActiveFilter] = useState<ActiveFilter>('all');
+  const [verifiedFilter, setVerifiedFilter] = useState<VerifiedFilter>('all');
+
+  const [listLoading, setListLoading] = useState(false);
+  const [listError, setListError] = useState<string | null>(null);
+  const [items, setItems] = useState<AdminBeekeeper[]>([]);
+  const [pagination, setPagination] = useState({ page: 1, limit: PAGE_SIZE, total: 0, totalPages: 1 });
+
+  const [selected, setSelected] = useState<AdminBeekeeper | null>(null);
+  const [editForm, setEditForm] = useState<EditFormState>(emptyEditForm);
+  const [editFeedback, setEditFeedback] = useState<string | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  const [createForm, setCreateForm] = useState<CreateFormState>(emptyCreateForm);
+  const [createFeedback, setCreateFeedback] = useState<string | null>(null);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+
+  const activeFilterValue = activeFilter === 'all' ? undefined : activeFilter === 'active';
+  const verifiedFilterValue = verifiedFilter === 'all' ? undefined : verifiedFilter === 'verified';
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const token = localStorage.getItem('token');
+    if (!token) {
+      router.replace('/login?redirect=/admin');
+      return;
+    }
+    const verify = async () => {
+      try {
+        const profile = await authApi.getProfile();
+        const role = profile?.data?.user?.role;
+        if (role !== 'admin') {
+          setAuthError('Sie benötigen Admin-Rechte, um diesen Bereich aufzurufen.');
+          setAuthState('denied');
+          router.replace('/meinbereich');
+          return;
+        }
+        setAdminEmail(profile?.data?.user?.email || '');
+        setAuthState('allowed');
+        setAuthError(null);
+      } catch (error: any) {
+        setAuthError(error?.response?.data?.message || 'Authentifizierung fehlgeschlagen.');
+        setAuthState('denied');
+      }
+    };
+    verify();
+  }, [router]);
+
+  const loadBeekeepers = useCallback(
+    async (pageToLoad: number, focusId?: string) => {
+      setListLoading(true);
+      setListError(null);
+      try {
+        const response = await adminApi.listBeekeepers({
+          page: pageToLoad,
+          limit: PAGE_SIZE,
+          search: search.trim() || undefined,
+          isActive: activeFilterValue,
+          isVerified: verifiedFilterValue,
+        });
+        const { items: beekeepers, pagination: paginationData } = response.data;
+        setItems(beekeepers);
+        setPagination(paginationData);
+        setSelected((prev) => {
+          if (focusId) {
+            return beekeepers.find((item) => item.id === focusId) || beekeepers[0] || null;
+          }
+          if (prev) {
+            const stillAvailable = beekeepers.find((item) => item.id === prev.id);
+            return stillAvailable || beekeepers[0] || null;
+          }
+          return beekeepers[0] || null;
+        });
+      } catch (error: any) {
+        setListError(error?.response?.data?.message || 'Fehler beim Laden der Imkerliste.');
+      } finally {
+        setListLoading(false);
+      }
+    },
+    [activeFilterValue, search, verifiedFilterValue]
+  );
+
+  const loadBeekeepersRef = useRef(loadBeekeepers);
+  useEffect(() => {
+    loadBeekeepersRef.current = loadBeekeepers;
+  }, [loadBeekeepers]);
+
+  useEffect(() => {
+    if (authState === 'allowed') {
+      loadBeekeepersRef.current?.(1);
+    }
+  }, [authState]);
+
+  useEffect(() => {
+    if (!selected) {
+      setEditForm(emptyEditForm);
+      return;
+    }
+    setEditForm({
+      name: selected.name || '',
+      salutation: selected.salutation || '',
+      firstName: selected.firstName || '',
+      lastName: selected.lastName || '',
+      companyName: selected.companyName || '',
+      description: selected.description || '',
+      address: selected.address || '',
+      city: selected.city || '',
+      postalCode: selected.postalCode || '',
+      country: selected.country || '',
+      phone: selected.phone || '',
+      customerPhone: selected.customerPhone || '',
+      adminPhone: selected.adminPhone || '',
+      website: selected.website || '',
+      latitude: selected.latitude ? String(selected.latitude) : '',
+      longitude: selected.longitude ? String(selected.longitude) : '',
+      isActive: Boolean(selected.isActive),
+      isVerified: Boolean(selected.isVerified),
+    });
+    setEditFeedback(null);
+    setEditError(null);
+  }, [selected]);
+
+  const handleSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (authState !== 'allowed') return;
+    loadBeekeepersRef.current?.(1);
+  };
+
+  const handleEditInputChange = (
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value } = event.target;
+    setEditForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleEditCheckboxChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const { name, checked } = event.target;
+    setEditForm((prev) => ({ ...prev, [name]: checked }));
+  };
+
+  const handleCreateInputChange = (
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value } = event.target;
+    setCreateForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleCreateCheckboxChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const { name, checked } = event.target;
+    setCreateForm((prev) => ({ ...prev, [name]: checked }));
+  };
+
+  const handleUpdateBeekeeper = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!selected) return;
+    setSavingEdit(true);
+    setEditFeedback(null);
+    setEditError(null);
+    try {
+      const payload: AdminUpdateBeekeeperPayload = {
+        name: editForm.name.trim(),
+        salutation: editForm.salutation.trim() || null,
+        firstName: editForm.firstName.trim() || null,
+        lastName: editForm.lastName.trim() || null,
+        companyName: editForm.companyName.trim() || null,
+        description: editForm.description.trim() || null,
+        address: editForm.address.trim() || undefined,
+        city: editForm.city.trim() || null,
+        postalCode: editForm.postalCode.trim() || null,
+        country: editForm.country.trim() || null,
+        phone: editForm.phone.trim() || null,
+        customerPhone: editForm.customerPhone.trim() || null,
+        adminPhone: editForm.adminPhone.trim() || null,
+        website: editForm.website.trim() || null,
+        isActive: editForm.isActive,
+        isVerified: editForm.isVerified,
+      };
+
+      const latitude = numberFromInput(editForm.latitude);
+      const longitude = numberFromInput(editForm.longitude);
+      if (typeof latitude === 'number') {
+        payload.latitude = latitude;
+      }
+      if (typeof longitude === 'number') {
+        payload.longitude = longitude;
+      }
+
+      Object.keys(payload).forEach((key) => {
+        if (payload[key as keyof AdminUpdateBeekeeperPayload] === undefined) {
+          delete payload[key as keyof AdminUpdateBeekeeperPayload];
+        }
+      });
+
+      const response = await adminApi.updateBeekeeper(selected.id, payload);
+      setEditFeedback(response.message || 'Imker wurde aktualisiert.');
+      setSelected(response.data);
+      setItems((prev) =>
+        prev.map((item) => (item.id === response.data.id ? response.data : item))
+      );
+    } catch (error: any) {
+      setEditError(error?.response?.data?.message || 'Aktualisierung fehlgeschlagen.');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const handleCreateBeekeeper = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setCreating(true);
+    setCreateFeedback(null);
+    setCreateError(null);
+    try {
+      const payload: AdminCreateBeekeeperPayload = {
+        email: createForm.email.trim(),
+        password: createForm.password,
+        name: createForm.name.trim(),
+        address: createForm.address.trim(),
+        salutation: createForm.salutation.trim() || null,
+        firstName: createForm.firstName.trim() || null,
+        lastName: createForm.lastName.trim() || null,
+        companyName: createForm.companyName.trim() || null,
+        description: createForm.description.trim() || null,
+        city: createForm.city.trim() || null,
+        postalCode: createForm.postalCode.trim() || null,
+        country: createForm.country.trim() || null,
+        phone: createForm.phone.trim() || null,
+        customerPhone: createForm.customerPhone.trim() || null,
+        adminPhone: createForm.adminPhone.trim() || null,
+        website: createForm.website.trim() || null,
+        isActive: createForm.isActive,
+        isVerified: createForm.isVerified,
+      };
+
+      const latitude = numberFromInput(createForm.latitude);
+      const longitude = numberFromInput(createForm.longitude);
+      if (typeof latitude === 'number') {
+        payload.latitude = latitude;
+      }
+      if (typeof longitude === 'number') {
+        payload.longitude = longitude;
+      }
+
+      const response = await adminApi.createBeekeeper(payload);
+      setCreateFeedback(response.message || 'Imker wurde angelegt.');
+      setCreateForm(emptyCreateForm);
+      loadBeekeepersRef.current?.(1, response.data.beekeeper.id);
+    } catch (error: any) {
+      setCreateError(error?.response?.data?.message || 'Neuanlage fehlgeschlagen.');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleChangePage = (direction: 'prev' | 'next') => {
+    if (direction === 'prev' && pagination.page > 1) {
+      loadBeekeepersRef.current?.(pagination.page - 1);
+    }
+    if (direction === 'next' && pagination.page < pagination.totalPages) {
+      loadBeekeepersRef.current?.(pagination.page + 1);
+    }
+  };
+
+  if (authState === 'checking') {
+    return (
+      <main className="min-h-screen bg-gradient-to-br from-amber-50 to-yellow-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-lg font-medium text-amber-900">Prüfe Berechtigungen ...</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (authState === 'denied') {
+    return (
+      <main className="min-h-screen bg-amber-50 flex items-center justify-center px-4">
+        <div className="max-w-md w-full bg-white shadow-lg rounded-xl p-6 text-center">
+          <h1 className="text-2xl font-semibold text-gray-900 mb-2">Kein Zugriff</h1>
+          <p className="text-gray-600 mb-4">
+            {authError || 'Du bist nicht berechtigt, diesen Bereich zu sehen.'}
+          </p>
+          <button
+            type="button"
+            onClick={() => router.replace('/login')}
+            className="px-4 py-2 rounded-lg bg-amber-600 text-white font-semibold"
+          >
+            Zur Anmeldung
+          </button>
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main className="min-h-screen bg-gray-50 pb-16">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10">
+        <header className="mb-8">
+          <p className="text-sm font-medium text-amber-700 uppercase tracking-wide">Admin-Backend</p>
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mt-2">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Imkerverwaltung</h1>
+              <p className="text-gray-600 mt-1">
+                Alle Einträge an einem Ort prüfen, bearbeiten und neu anlegen.
+              </p>
+            </div>
+            {adminEmail && (
+              <div className="bg-white shadow rounded-lg p-4 border border-amber-100">
+                <p className="text-xs uppercase tracking-wide text-gray-500">Angemeldet als</p>
+                <p className="text-sm font-semibold text-gray-900">{adminEmail}</p>
+              </div>
+            )}
+          </div>
+        </header>
+
+        <section className="bg-white shadow rounded-2xl p-6 mb-8 border border-amber-100">
+          <form className="grid gap-4 md:grid-cols-[2fr_1fr_1fr_auto]" onSubmit={handleSearchSubmit}>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Suche</label>
+              <input
+                type="text"
+                name="search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Name, Stadt oder E-Mail"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+              <select
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                value={activeFilter}
+                onChange={(event) => setActiveFilter(event.target.value as ActiveFilter)}
+              >
+                <option value="all">Alle</option>
+                <option value="active">Nur aktive</option>
+                <option value="inactive">Nur inaktive</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Verifizierung</label>
+              <select
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                value={verifiedFilter}
+                onChange={(event) => setVerifiedFilter(event.target.value as VerifiedFilter)}
+              >
+                <option value="all">Alle</option>
+                <option value="verified">Verifizierte</option>
+                <option value="unverified">Nicht verifizierte</option>
+              </select>
+            </div>
+            <div className="flex items-end gap-3">
+              <button
+                type="submit"
+                className="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-semibold px-4 py-2 rounded-lg"
+              >
+                Filter anwenden
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch('');
+                  setActiveFilter('all');
+                  setVerifiedFilter('all');
+                  loadBeekeepersRef.current?.(1);
+                }}
+                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700"
+              >
+                Reset
+              </button>
+            </div>
+          </form>
+          {listError && (
+            <p className="mt-4 text-sm text-red-600">{listError}</p>
+          )}
+        </section>
+
+        <div className="grid gap-8 lg:grid-cols-[2fr_1fr]">
+          <section className="bg-white shadow rounded-2xl border border-gray-100 overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Alle Imker</h2>
+                <p className="text-sm text-gray-500">
+                  {pagination.total} Einträge · Seite {pagination.page} von {pagination.totalPages}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => loadBeekeepersRef.current?.(pagination.page)}
+                className="text-sm font-medium text-amber-700 hover:underline"
+              >
+                Aktualisieren
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead className="bg-amber-50 text-amber-900 uppercase text-xs tracking-wide">
+                  <tr>
+                    <th className="px-4 py-3 text-left">Name</th>
+                    <th className="px-4 py-3 text-left">Kontakt</th>
+                    <th className="px-4 py-3 text-left">Status</th>
+                    <th className="px-4 py-3 text-left">Verifiziert</th>
+                    <th className="px-4 py-3 text-left">Ort</th>
+                    <th className="px-4 py-3 text-left">Aktualisiert</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.length === 0 && !listLoading && (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-6 text-center text-gray-500">
+                        Keine Einträge gefunden.
+                      </td>
+                    </tr>
+                  )}
+                  {items.map((beekeeper) => {
+                    const isActiveRow = selected?.id === beekeeper.id;
+                    return (
+                      <tr
+                        key={beekeeper.id}
+                        onClick={() => setSelected(beekeeper)}
+                        className={`${
+                          isActiveRow ? 'bg-amber-50' : 'hover:bg-gray-50'
+                        } cursor-pointer transition-colors`}
+                      >
+                        <td className="px-4 py-3">
+                          <p className="font-semibold text-gray-900">{beekeeper.name}</p>
+                          <p className="text-xs text-gray-500">{beekeeper.companyName || '—'}</p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <p className="text-sm text-gray-900">{beekeeper.user?.email || '—'}</p>
+                          <p className="text-xs text-gray-500">{beekeeper.phone || 'keine Nummer'}</p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                              beekeeper.isActive
+                                ? 'bg-emerald-50 text-emerald-800'
+                                : 'bg-gray-100 text-gray-600'
+                            }`}
+                          >
+                            {beekeeper.isActive ? 'Aktiv' : 'Inaktiv'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                              beekeeper.isVerified
+                                ? 'bg-sky-50 text-sky-800'
+                                : 'bg-amber-100 text-amber-900'
+                            }`}
+                          >
+                            {beekeeper.isVerified ? 'Bestätigt' : 'Offen'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <p className="text-sm text-gray-900">{beekeeper.city || '—'}</p>
+                          <p className="text-xs text-gray-500">{beekeeper.postalCode || ''}</p>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-500">
+                          {beekeeper.updatedAt
+                            ? new Date(beekeeper.updatedAt).toLocaleDateString('de-DE')
+                            : '—'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            {listLoading && (
+              <div className="py-4 text-center text-sm text-gray-500">Lade Einträge ...</div>
+            )}
+
+            <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100">
+              <button
+                type="button"
+                disabled={pagination.page === 1}
+                onClick={() => handleChangePage('prev')}
+                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 disabled:opacity-50"
+              >
+                Zurück
+              </button>
+              <span className="text-sm text-gray-600">
+                Seite {pagination.page} von {pagination.totalPages}
+              </span>
+              <button
+                type="button"
+                disabled={pagination.page >= pagination.totalPages}
+                onClick={() => handleChangePage('next')}
+                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 disabled:opacity-50"
+              >
+                Weiter
+              </button>
+            </div>
+          </section>
+
+          <aside className="space-y-8">
+            <section className="bg-white shadow rounded-2xl border border-gray-100 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">Details & Bearbeitung</h2>
+                  <p className="text-sm text-gray-500">Direktes Update des aktiven Eintrags</p>
+                </div>
+                <span className="text-sm font-medium text-amber-700">
+                  {selected ? 'ID ' + selected.id.slice(0, 8) + '…' : 'Kein Eintrag ausgewählt'}
+                </span>
+              </div>
+              {!selected && (
+                <p className="text-sm text-gray-500">Wähle links einen Eintrag, um die Details zu bearbeiten.</p>
+              )}
+              {selected && (
+                <>
+                  <div className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+                    <p>
+                      <span className="font-semibold">E-Mail:</span> {selected.user?.email || '—'}
+                    </p>
+                    <p>
+                      <span className="font-semibold">Honigsorten:</span> {selected.honeyTypes?.length || 0}
+                    </p>
+                  </div>
+                  <form className="space-y-4" onSubmit={handleUpdateBeekeeper}>
+                    <div className="grid grid-cols-1 gap-4">
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Name</label>
+                        <input
+                          type="text"
+                          name="name"
+                          value={editForm.name}
+                          onChange={handleEditInputChange}
+                          required
+                          className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-sm font-medium text-gray-700">Anrede</label>
+                          <input
+                            type="text"
+                            name="salutation"
+                            value={editForm.salutation}
+                            onChange={handleEditInputChange}
+                            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-gray-700">Firma</label>
+                          <input
+                            type="text"
+                            name="companyName"
+                            value={editForm.companyName}
+                            onChange={handleEditInputChange}
+                            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-sm font-medium text-gray-700">Vorname</label>
+                          <input
+                            type="text"
+                            name="firstName"
+                            value={editForm.firstName}
+                            onChange={handleEditInputChange}
+                            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-gray-700">Nachname</label>
+                          <input
+                            type="text"
+                            name="lastName"
+                            value={editForm.lastName}
+                            onChange={handleEditInputChange}
+                            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Beschreibung</label>
+                        <textarea
+                          name="description"
+                          value={editForm.description}
+                          onChange={handleEditInputChange}
+                          rows={3}
+                          className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Adresse</label>
+                        <input
+                          type="text"
+                          name="address"
+                          value={editForm.address}
+                          onChange={handleEditInputChange}
+                          required
+                          className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                        />
+                      </div>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <label className="text-sm font-medium text-gray-700">PLZ</label>
+                          <input
+                            type="text"
+                            name="postalCode"
+                            value={editForm.postalCode}
+                            onChange={handleEditInputChange}
+                            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-gray-700">Stadt</label>
+                          <input
+                            type="text"
+                            name="city"
+                            value={editForm.city}
+                            onChange={handleEditInputChange}
+                            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-gray-700">Land</label>
+                          <input
+                            type="text"
+                            name="country"
+                            value={editForm.country}
+                            onChange={handleEditInputChange}
+                            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-sm font-medium text-gray-700">Telefon (öffentlich)</label>
+                          <input
+                            type="text"
+                            name="phone"
+                            value={editForm.phone}
+                            onChange={handleEditInputChange}
+                            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-gray-700">Telefon (Kund*innen)</label>
+                          <input
+                            type="text"
+                            name="customerPhone"
+                            value={editForm.customerPhone}
+                            onChange={handleEditInputChange}
+                            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Telefon (intern)</label>
+                        <input
+                          type="text"
+                          name="adminPhone"
+                          value={editForm.adminPhone}
+                          onChange={handleEditInputChange}
+                          className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Website</label>
+                        <input
+                          type="url"
+                          name="website"
+                          value={editForm.website}
+                          onChange={handleEditInputChange}
+                          className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-sm font-medium text-gray-700">Latitude</label>
+                          <input
+                            type="text"
+                            name="latitude"
+                            value={editForm.latitude}
+                            onChange={handleEditInputChange}
+                            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-gray-700">Longitude</label>
+                          <input
+                            type="text"
+                            name="longitude"
+                            value={editForm.longitude}
+                            onChange={handleEditInputChange}
+                            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                          <input
+                            type="checkbox"
+                            name="isActive"
+                            checked={editForm.isActive}
+                            onChange={handleEditCheckboxChange}
+                          />
+                          Aktiv gelistet
+                        </label>
+                        <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                          <input
+                            type="checkbox"
+                            name="isVerified"
+                            checked={editForm.isVerified}
+                            onChange={handleEditCheckboxChange}
+                          />
+                          Verifiziert
+                        </label>
+                      </div>
+                      {editError && (
+                        <p className="text-sm text-red-600">{editError}</p>
+                      )}
+                      {editFeedback && (
+                        <p className="text-sm text-emerald-600">{editFeedback}</p>
+                      )}
+                      <button
+                        type="submit"
+                        className="w-full rounded-lg bg-amber-600 py-2.5 text-white font-semibold disabled:opacity-50"
+                        disabled={savingEdit}
+                      >
+                        {savingEdit ? 'Speichere ...' : 'Änderungen speichern'}
+                      </button>
+                    </div>
+                  </form>
+                </>
+              )}
+            </section>
+
+            <section className="bg-white shadow rounded-2xl border border-gray-100 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Neuen Imker anlegen</h2>
+              <form className="space-y-4" onSubmit={handleCreateBeekeeper}>
+                <div className="grid grid-cols-1 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">E-Mail</label>
+                    <input
+                      type="email"
+                      name="email"
+                      value={createForm.email}
+                      onChange={handleCreateInputChange}
+                      required
+                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Initiales Passwort</label>
+                    <input
+                      type="password"
+                      name="password"
+                      value={createForm.password}
+                      onChange={handleCreateInputChange}
+                      required
+                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Name</label>
+                    <input
+                      type="text"
+                      name="name"
+                      value={createForm.name}
+                      onChange={handleCreateInputChange}
+                      required
+                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Adresse</label>
+                    <input
+                      type="text"
+                      name="address"
+                      value={createForm.address}
+                      onChange={handleCreateInputChange}
+                      required
+                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Stadt</label>
+                      <input
+                        type="text"
+                        name="city"
+                        value={createForm.city}
+                        onChange={handleCreateInputChange}
+                        className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">PLZ</label>
+                      <input
+                        type="text"
+                        name="postalCode"
+                        value={createForm.postalCode}
+                        onChange={handleCreateInputChange}
+                        className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Beschreibung</label>
+                    <textarea
+                      name="description"
+                      value={createForm.description}
+                      onChange={handleCreateInputChange}
+                      rows={3}
+                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Telefon (öffentlich)</label>
+                      <input
+                        type="text"
+                        name="phone"
+                        value={createForm.phone}
+                        onChange={handleCreateInputChange}
+                        className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Telefon (Kund*innen)</label>
+                      <input
+                        type="text"
+                        name="customerPhone"
+                        value={createForm.customerPhone}
+                        onChange={handleCreateInputChange}
+                        className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Telefon (intern)</label>
+                    <input
+                      type="text"
+                      name="adminPhone"
+                      value={createForm.adminPhone}
+                      onChange={handleCreateInputChange}
+                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Latitude</label>
+                      <input
+                        type="text"
+                        name="latitude"
+                        value={createForm.latitude}
+                        onChange={handleCreateInputChange}
+                        className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Longitude</label>
+                      <input
+                        type="text"
+                        name="longitude"
+                        value={createForm.longitude}
+                        onChange={handleCreateInputChange}
+                        className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                      <input
+                        type="checkbox"
+                        name="isActive"
+                        checked={createForm.isActive}
+                        onChange={handleCreateCheckboxChange}
+                      />
+                      Sofort sichtbar
+                    </label>
+                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                      <input
+                        type="checkbox"
+                        name="isVerified"
+                        checked={createForm.isVerified}
+                        onChange={handleCreateCheckboxChange}
+                      />
+                      Bereits verifiziert
+                    </label>
+                  </div>
+                </div>
+                {createError && <p className="text-sm text-red-600">{createError}</p>}
+                {createFeedback && <p className="text-sm text-emerald-600">{createFeedback}</p>}
+                <button
+                  type="submit"
+                  className="w-full rounded-lg bg-amber-600 py-2.5 text-white font-semibold disabled:opacity-50"
+                  disabled={creating}
+                >
+                  {creating ? 'Lege an ...' : 'Imker erstellen'}
+                </button>
+              </form>
+            </section>
+          </aside>
+        </div>
+      </div>
+    </main>
+  );
+}

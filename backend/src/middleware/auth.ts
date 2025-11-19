@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { AppDataSource } from '../config/database';
+import { User } from '../entities/User';
 
 export interface AuthRequest extends Request {
   user?: {
@@ -43,10 +45,21 @@ export const authenticate = async (
       role: string;
     };
 
+    const userRepository = AppDataSource.getRepository(User);
+    const dbUser = await userRepository.findOne({ where: { id: decoded.userId } });
+
+    if (!dbUser) {
+      res.status(401).json({
+        success: false,
+        message: 'Benutzer nicht gefunden',
+      });
+      return;
+    }
+
     req.user = {
-      userId: decoded.userId,
-      email: decoded.email,
-      role: decoded.role,
+      userId: dbUser.id,
+      email: dbUser.email,
+      role: dbUser.role,
     };
 
     next();
@@ -88,10 +101,18 @@ export const optionalAuthenticate = async (
       role: string;
     };
 
+    const userRepository = AppDataSource.getRepository(User);
+    const dbUser = await userRepository.findOne({ where: { id: decoded.userId } });
+
+    if (!dbUser) {
+      next();
+      return;
+    }
+
     req.user = {
-      userId: decoded.userId,
-      email: decoded.email,
-      role: decoded.role,
+      userId: dbUser.id,
+      email: dbUser.email,
+      role: dbUser.role,
     };
 
     next();

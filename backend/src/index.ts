@@ -6,6 +6,8 @@ import dotenv from 'dotenv';
 import { AppDataSource } from './config/database';
 import authRoutes from './routes/auth.routes';
 import beekeeperRoutes from './routes/beekeeper.routes';
+import adminRoutes from './routes/admin.routes';
+import { authenticate, requireRole } from './middleware/auth';
 
 dotenv.config();
 
@@ -42,6 +44,7 @@ app.get('/health', (_req, res) => {
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/beekeepers', beekeeperRoutes);
+app.use('/api/admin', authenticate, requireRole('admin'), adminRoutes);
 
 // 404 Handler
 app.use((_req, res) => {
