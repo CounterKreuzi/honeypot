@@ -113,4 +113,10 @@ export const adminApi = {
     );
     return response.data;
   },
+  deleteBeekeeper: async (id: string) => {
+    const response = await apiClient.delete<{ success: boolean; message: string }>(
+      `/api/admin/beekeepers/${id}`
+    );
+    return response.data;
+  },
 };
