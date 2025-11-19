@@ -142,6 +142,7 @@ export default function AdminDashboardPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [globalSuccess, setGlobalSuccess] = useState<string | null>(null);
 
   const activeFilterValue = activeFilter === 'all' ? undefined : activeFilter === 'active';
   const verifiedFilterValue = verifiedFilter === 'all' ? undefined : verifiedFilter === 'verified';
@@ -319,11 +320,13 @@ export default function AdminDashboardPage() {
       });
 
       const response = await adminApi.updateBeekeeper(selected.id, payload);
-      setEditFeedback(response.message || 'Imker wurde aktualisiert.');
       setSelected(response.data);
       setItems((prev) =>
         prev.map((item) => (item.id === response.data.id ? response.data : item))
       );
+      setEditFeedback(null);
+      setGlobalSuccess(response.message || 'Änderungen erfolgreich gespeichert');
+      setIsEditModalOpen(false);
     } catch (error: any) {
       setEditError(error?.response?.data?.message || 'Aktualisierung fehlgeschlagen.');
     } finally {
@@ -484,6 +487,19 @@ export default function AdminDashboardPage() {
             )}
           </div>
         </header>
+
+        {globalSuccess && (
+          <div className="mb-6 flex items-start justify-between gap-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+            <p className="font-medium">{globalSuccess}</p>
+            <button
+              type="button"
+              onClick={() => setGlobalSuccess(null)}
+              className="text-emerald-700 text-xs font-semibold uppercase tracking-wide"
+            >
+              Schließen
+            </button>
+          </div>
+        )}
 
         <section className="bg-white shadow rounded-2xl p-6 mb-8 border border-amber-100">
           <div className="grid gap-4 md:grid-cols-[2fr_1fr_1fr_auto]">

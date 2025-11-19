@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { X, ChevronDown, ChevronUp, MapPin, Euro, Clock, Maximize2 } from 'lucide-react';
+import { X, ChevronDown, ChevronUp, MapPin, Euro, Clock, Maximize2, Package, Info } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { Beekeeper } from '@/types/api';
 
@@ -31,6 +31,7 @@ export interface FilterState {
   maxDistance: number;
   openNow: boolean;
   hasWebsite: boolean;
+  jarSize: 250 | 500 | 1000 | null;
 }
 
 // ✅ Bessere Werte für ganz Österreich sichtbar
@@ -54,12 +55,11 @@ export default function FilterSidebar({
     maxDistance: 50,
     openNow: false,
     hasWebsite: false,
+    jarSize: null,
   });
 
   const [expandedSections, setExpandedSections] = useState({
     honeyTypes: true,
-    price: true,
-    distance: true,
     availability: true,
   });
 
@@ -167,6 +167,7 @@ export default function FilterSidebar({
       maxDistance: 50,
       openNow: false,
       hasWebsite: false,
+      jarSize: null,
     };
     setFilters(defaultFilters);
     onFilterChange(defaultFilters);
@@ -177,7 +178,8 @@ export default function FilterSidebar({
     (filters.openNow ? 1 : 0) +
     (filters.hasWebsite ? 1 : 0) +
     (filters.maxDistance < 50 ? 1 : 0) +
-    (filters.priceRange[0] > 0 || filters.priceRange[1] < 50 ? 1 : 0);
+    (filters.priceRange[0] > 0 || filters.priceRange[1] < 50 ? 1 : 0) +
+    (filters.jarSize ? 1 : 0);
 
   // Update map center/zoom when userLocation changes
   useEffect(() => {
@@ -266,6 +268,100 @@ export default function FilterSidebar({
         </div>
 
         <div>
+          {/* Max. Entfernung Filter */}
+          <div className="border-b border-gray-200">
+            <div className="px-4 py-3 flex items-center gap-2">
+              <MapPin className="w-5 h-5 text-gray-600" />
+              <span className="font-medium text-gray-900">Max. Entfernung</span>
+            </div>
+            <div className="px-4 pb-4">
+              <div className="space-y-3">
+                <input
+                  type="range"
+                  min="1"
+                  max="200"
+                  value={filters.maxDistance}
+                  onChange={(e) => updateFilters({ maxDistance: parseInt(e.target.value) })}
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-amber-600"
+                />
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600">1 km</span>
+                  <span className="font-semibold text-gray-900">{filters.maxDistance} km</span>
+                </div>
+                {!userLocation && (
+                  <p className="text-xs text-amber-600 mt-2 p-2 bg-amber-50 rounded">
+                    💡 Gib einen Standort ein, um Imker in deiner Nähe zu finden
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Preis Filter */}
+          <div className="border-b border-gray-200">
+            <div className="px-4 py-3 flex items-center gap-2">
+              <Euro className="w-5 h-5 text-gray-600" />
+              <div className="flex items-center gap-1">
+                <span className="font-medium text-gray-900">Preis</span>
+                <span
+                  className="inline-flex"
+                  title="Gefiltert wird nach dem günstigsten Preis für die ausgewählten Mengen"
+                  aria-label="Gefiltert wird nach dem günstigsten Preis für die ausgewählten Mengen"
+                >
+                  <Info className="w-4 h-4 text-gray-400" aria-hidden="true" focusable="false" />
+                </span>
+              </div>
+            </div>
+            <div className="px-4 pb-4">
+              <div className="space-y-3">
+                <input
+                  type="range"
+                  min="0"
+                  max="50"
+                  value={filters.priceRange[1]}
+                  onChange={(e) =>
+                    updateFilters({
+                      priceRange: [filters.priceRange[0], parseInt(e.target.value)],
+                    })
+                  }
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-amber-600"
+                />
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600">€{filters.priceRange[0]}</span>
+                  <span className="font-semibold text-gray-900">bis €{filters.priceRange[1]}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Glasgröße Filter */}
+          <div className="border-b border-gray-200">
+            <div className="px-4 py-3 flex items-center gap-2">
+              <Package className="w-5 h-5 text-gray-600" />
+              <span className="font-medium text-gray-900">Füllmenge</span>
+            </div>
+            <div className="px-4 pb-4">
+              <div className="grid grid-cols-3 gap-2">
+                {[250, 500, 1000].map((size) => (
+                  <button
+                    key={size}
+                    type="button"
+                    onClick={() =>
+                      updateFilters({ jarSize: filters.jarSize === size ? null : (size as 250 | 500 | 1000) })
+                    }
+                    className={`px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                      filters.jarSize === size
+                        ? 'border-amber-600 bg-amber-50 text-amber-700'
+                        : 'border-gray-200 text-gray-700 hover:border-amber-200'
+                    }`}
+                  >
+                    {size}g
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
           {/* Honigsorten Filter */}
           <div className="border-b border-gray-200">
             <button
@@ -308,95 +404,6 @@ export default function FilterSidebar({
                 ) : (
                   <p className="text-sm text-gray-500 p-2">Keine Honigsorten verfügbar</p>
                 )}
-              </div>
-            )}
-          </div>
-
-          {/* Preis Filter */}
-          <div className="border-b border-gray-200">
-            <button
-              onClick={() => toggleSection('price')}
-              className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
-            >
-              <div className="flex items-center gap-2">
-                <Euro className="w-5 h-5 text-gray-600" />
-                <span className="font-medium text-gray-900">Preis pro Glas</span>
-              </div>
-              {expandedSections.price ? (
-                <ChevronUp className="w-5 h-5 text-gray-500" />
-              ) : (
-                <ChevronDown className="w-5 h-5 text-gray-500" />
-              )}
-            </button>
-
-            {expandedSections.price && (
-              <div className="px-4 pb-4">
-                <div className="space-y-3">
-                  <input
-                    type="range"
-                    min="0"
-                    max="50"
-                    value={filters.priceRange[1]}
-                    onChange={(e) =>
-                      updateFilters({
-                        priceRange: [filters.priceRange[0], parseInt(e.target.value)],
-                      })
-                    }
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-amber-600"
-                  />
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">€{filters.priceRange[0]}</span>
-                    <span className="font-semibold text-gray-900">
-                      bis €{filters.priceRange[1]}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Max. Entfernung Filter */}
-          <div className="border-b border-gray-200">
-            <button
-              onClick={() => toggleSection('distance')}
-              className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
-            >
-              <div className="flex items-center gap-2">
-                <MapPin className="w-5 h-5 text-gray-600" />
-                <span className="font-medium text-gray-900">Max. Entfernung</span>
-              </div>
-              {expandedSections.distance ? (
-                <ChevronUp className="w-5 h-5 text-gray-500" />
-              ) : (
-                <ChevronDown className="w-5 h-5 text-gray-500" />
-              )}
-            </button>
-
-            {expandedSections.distance && (
-              <div className="px-4 pb-4">
-                <div className="space-y-3">
-                  <input
-                    type="range"
-                    min="1"
-                    max="200"
-                    value={filters.maxDistance}
-                    onChange={(e) =>
-                      updateFilters({ maxDistance: parseInt(e.target.value) })
-                    }
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-amber-600"
-                  />
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">1 km</span>
-                    <span className="font-semibold text-gray-900">
-                      {filters.maxDistance} km
-                    </span>
-                  </div>
-                  {!userLocation && (
-                    <p className="text-xs text-amber-600 mt-2 p-2 bg-amber-50 rounded">
-                      💡 Gib einen Standort ein, um Imker in deiner Nähe zu finden
-                    </p>
-                  )}
-                </div>
               </div>
             )}
           </div>

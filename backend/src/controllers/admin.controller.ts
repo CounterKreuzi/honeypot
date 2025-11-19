@@ -271,6 +271,28 @@ export const updateBeekeeper = async (
       return;
     }
 
+    let latitude = typeof value.latitude === 'number' ? value.latitude : undefined;
+    let longitude = typeof value.longitude === 'number' ? value.longitude : undefined;
+    const targetAddress = value.address ?? beekeeper.address;
+    const targetCity = value.city ?? beekeeper.city ?? undefined;
+    const targetPostalCode = value.postalCode ?? beekeeper.postalCode ?? undefined;
+    const addressChanged = 'address' in value || 'city' in value || 'postalCode' in value;
+
+    if (targetAddress && (addressChanged || !latitude || !longitude)) {
+      const geocode = await geocodeAddress(targetAddress, targetCity || undefined, targetPostalCode || undefined);
+      if (geocode) {
+        latitude = geocode.latitude;
+        longitude = geocode.longitude;
+      }
+    }
+
+    if (typeof latitude === 'number') {
+      value.latitude = latitude;
+    }
+    if (typeof longitude === 'number') {
+      value.longitude = longitude;
+    }
+
     Object.assign(beekeeper, value);
 
     await beekeeperRepository.save(beekeeper);
