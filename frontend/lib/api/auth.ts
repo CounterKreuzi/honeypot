@@ -27,7 +27,11 @@ export const authApi = {
       phoneAdmin?: string;
     }
   ) => {
-    const response = await apiClient.post<{ success: boolean; message: string; data?: any }>(
+    const response = await apiClient.post<{
+      success: boolean;
+      message: string;
+      data?: { token?: string };
+    }>(
       '/api/auth/register-complete',
       { token, password, name, ...(opts || {}) }
     );

@@ -41,7 +41,7 @@ export const beekeepersApi = {
 
   // Advanced search with filters
   searchWithFilters: async (filters: SearchFilters): Promise<Beekeeper[]> => {
-    const params: any = { ...filters };
+    const params: Record<string, unknown> = { ...filters };
     
     // Convert array to comma-separated string for query params
     if (filters.honeyTypes && Array.isArray(filters.honeyTypes)) {

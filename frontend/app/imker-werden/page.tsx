@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { authApi } from '@/lib/api/auth';
 import Link from 'next/link';
+import { getApiErrorMessage } from '@/lib/api/errors';
 
 export default function RegisterBeekeeperPage() {
   const [email, setEmail] = useState('');
@@ -18,9 +19,9 @@ export default function RegisterBeekeeperPage() {
     try {
       const res = await authApi.registerIntent(email);
       setMessage(res?.message || 'Wenn diese E-Mail existiert, senden wir dir einen Bestätigungslink.');
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Aus Sicherheit immer gleich antworten
-      setMessage('Wenn diese E-Mail existiert, senden wir dir einen Bestätigungslink.');
+      setMessage(getApiErrorMessage(err, 'Wenn diese E-Mail existiert, senden wir dir einen Bestätigungslink.'));
     } finally {
       setLoading(false);
     }

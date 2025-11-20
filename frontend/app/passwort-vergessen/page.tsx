@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { authApi } from '@/lib/api/auth';
 import Link from 'next/link';
+import { getApiErrorMessage } from '@/lib/api/errors';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -18,8 +19,10 @@ export default function ForgotPasswordPage() {
     try {
       const res = await authApi.requestPasswordReset(email);
       setMessage(res?.message || 'Wenn diese E-Mail existiert, wurde ein Link gesendet.');
-    } catch (err: any) {
-      setMessage('Wenn diese E-Mail existiert, wurde ein Link gesendet.');
+    } catch (err: unknown) {
+      setMessage(
+        getApiErrorMessage(err, 'Wenn diese E-Mail existiert, wurde ein Link gesendet.')
+      );
     } finally {
       setLoading(false);
     }

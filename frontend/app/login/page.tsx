@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { authApi } from '@/lib/api/auth';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { getApiErrorMessage } from '@/lib/api/errors';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -26,8 +27,8 @@ export default function LoginPage() {
       } else {
         setError(res?.message || 'Login fehlgeschlagen');
       }
-    } catch (err: any) {
-      setError(err?.response?.data?.message || 'Login fehlgeschlagen');
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, 'Login fehlgeschlagen'));
     } finally {
       setLoading(false);
     }

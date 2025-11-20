@@ -5,6 +5,15 @@ import { useRouter } from 'next/navigation';
 import { beekeepersApi } from '@/lib/api/beekeepers';
 import type { Beekeeper, HoneyType } from '@/types/api';
 import { authApi } from '@/lib/api/auth';
+import { getApiErrorMessage } from '@/lib/api/errors';
+
+type AuthProfileResponse = {
+  data?: {
+    user?: {
+      email?: string;
+    };
+  };
+};
 
 export default function MeinBereichPage() {
   const router = useRouter();
@@ -90,7 +99,7 @@ export default function MeinBereichPage() {
         setHoneyTypes(me.honeyTypes || []);
         // also fetch user email for display
         try {
-          const profileRes: any = await authApi.getProfile();
+          const profileRes = (await authApi.getProfile()) as AuthProfileResponse;
           setUserEmail(profileRes?.data?.user?.email || '');
         } catch {}
 
@@ -103,8 +112,8 @@ export default function MeinBereichPage() {
           }
         }
         setError(null);
-      } catch (err: any) {
-        setError(err?.response?.data?.message || 'Fehler beim Laden deines Profils');
+      } catch (err: unknown) {
+        setError(getApiErrorMessage(err, 'Fehler beim Laden deines Profils'));
       } finally {
         setLoading(false);
       }
@@ -128,8 +137,8 @@ export default function MeinBereichPage() {
       setProfile(updated);
       setEditing(false);
       setError(null);
-    } catch (err: any) {
-      setError(err?.response?.data?.message || 'Fehler beim Speichern');
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, 'Fehler beim Speichern'));
     } finally {
       setSaving(false);
     }
@@ -156,8 +165,8 @@ export default function MeinBereichPage() {
       setNewHoneyPrice1000('');
       setNewHoneyAvailable(true);
       setError(null);
-    } catch (err: any) {
-      setError(err?.response?.data?.message || 'Fehler beim Hinzufügen der Honigsorte');
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, 'Fehler beim Hinzufügen der Honigsorte'));
     }
   };
 
@@ -166,8 +175,8 @@ export default function MeinBereichPage() {
       await beekeepersApi.updateHoneyType(h.id, { available: !h.available });
       const me = await beekeepersApi.getMyProfile();
       setHoneyTypes(me.honeyTypes || []);
-    } catch (err: any) {
-      setError(err?.response?.data?.message || 'Fehler beim Aktualisieren');
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, 'Fehler beim Aktualisieren'));
     }
   };
 
@@ -176,8 +185,8 @@ export default function MeinBereichPage() {
       await beekeepersApi.deleteHoneyType(h.id);
       const me = await beekeepersApi.getMyProfile();
       setHoneyTypes(me.honeyTypes || []);
-    } catch (err: any) {
-      setError(err?.response?.data?.message || 'Fehler beim Löschen');
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, 'Fehler beim Löschen'));
     }
   };
 
@@ -192,8 +201,8 @@ export default function MeinBereichPage() {
       } else {
         setError(res?.message || 'Konnte Code nicht senden');
       }
-    } catch (err: any) {
-      setError(err?.response?.data?.message || 'Fehler beim Senden des Codes');
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, 'Fehler beim Senden des Codes'));
     }
   };
   const handleEmailConfirm = async (e: React.FormEvent) => {
@@ -211,8 +220,8 @@ export default function MeinBereichPage() {
       } else {
         setError(res?.message || 'BestÃ¤tigung fehlgeschlagen');
       }
-    } catch (err: any) {
-      setError(err?.response?.data?.message || 'Fehler bei der BestÃ¤tigung');
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, 'Fehler bei der Bestätigung'));
     }
   };
 
@@ -232,8 +241,8 @@ export default function MeinBereichPage() {
       } else {
         setError(res?.message || 'Passwort konnte nicht geändert werden');
       }
-    } catch (err: any) {
-      setError(err?.response?.data?.message || 'Fehler beim Passwort ändern');
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, 'Fehler beim Passwort ändern'));
     }
   };
 
@@ -481,8 +490,8 @@ export default function MeinBereichPage() {
                 const me = await beekeepersApi.getMyProfile();
                 setHoneyTypes(me.honeyTypes || []);
                 setEditingHoney(null);
-              } catch (err: any) {
-                setError(err?.response?.data?.message || 'Fehler beim Aktualisieren der Honigsorte');
+              } catch (err: unknown) {
+                setError(getApiErrorMessage(err, 'Fehler beim Aktualisieren der Honigsorte'));
               }
             }}>
               <div>
