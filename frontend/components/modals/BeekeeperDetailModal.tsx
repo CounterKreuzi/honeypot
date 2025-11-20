@@ -42,7 +42,6 @@ export default function BeekeeperDetailModal({
 
   if (!isOpen || !beekeeper) return null;
 
-  const hasImage = beekeeper.photo || beekeeper.logo;
   const imageUrl = beekeeper.photo || beekeeper.logo;
 
   // Google Maps Link
@@ -62,7 +61,7 @@ export default function BeekeeperDetailModal({
       <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-white rounded-xl shadow-2xl">
         {/* Header with Image */}
         <div className="relative h-64 bg-gradient-to-br from-amber-100 to-yellow-100">
-          {hasImage ? (
+          {imageUrl ? (
             <Image
               src={imageUrl}
               alt={beekeeper.name}
