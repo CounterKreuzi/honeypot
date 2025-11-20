@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { authApi } from '@/lib/api/auth';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { getApiErrorMessage } from '@/lib/api/errors';
 
 function ResetPasswordInner() {
   const params = useSearchParams();
@@ -40,8 +41,8 @@ function ResetPasswordInner() {
       const res = await authApi.resetPassword(token, password);
       setMessage(res?.message || 'Passwort wurde zurückgesetzt.');
       setTimeout(() => router.push('/login'), 1500);
-    } catch (err: any) {
-      setError(err?.response?.data?.message || 'Zurücksetzen fehlgeschlagen.');
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, 'Zurücksetzen fehlgeschlagen.'));
     } finally {
       setLoading(false);
     }

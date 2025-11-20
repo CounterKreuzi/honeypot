@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useBeekeeperStore } from '@/lib/store/beekeeperStore';
 import { beekeepersApi } from '@/lib/api/beekeepers';
 import { Beekeeper } from '@/types/api';
@@ -49,11 +49,20 @@ const calculateDistanceKm = (
   return 6371 * c;
 };
 
+const parsePriceValue = (price: unknown): number | null => {
+  if (price === null || price === undefined) return null;
+
+  const numericPrice =
+    typeof price === 'string' ? Number(price.replace(',', '.')) : Number(price);
+
+  return Number.isFinite(numericPrice) ? numericPrice : null;
+};
+
 const getAvailablePrices = (honeyTypes: Beekeeper['honeyTypes']) =>
   honeyTypes.flatMap((honey) =>
-    [honey.price250, honey.price500, honey.price1000].filter(
-      (price): price is number => typeof price === 'number' && !Number.isNaN(price)
-    )
+    [honey.price250, honey.price500, honey.price1000]
+      .map((price) => parsePriceValue(price))
+      .filter((price): price is number => price !== null)
   );
 
 export default function Home() {
@@ -200,14 +209,15 @@ export default function Home() {
   }, [beekeepers]);
 
   // Filter beekeepers based on current filters
-  const matchesCommonFilters = (beekeeper: Beekeeper) => {
-    // Honey types filter
-    if (
-      filters.honeyTypes.length > 0 &&
-      !beekeeper.honeyTypes.some((honey) => filters.honeyTypes.includes(honey.name))
-    ) {
-      return false;
-    }
+  const matchesCommonFilters = useCallback(
+    (beekeeper: Beekeeper) => {
+      // Honey types filter
+      if (
+        filters.honeyTypes.length > 0 &&
+        !beekeeper.honeyTypes.some((honey) => filters.honeyTypes.includes(honey.name))
+      ) {
+        return false;
+      }
 
     // Price filter
     const prices = getAvailablePrices(beekeeper.honeyTypes);
@@ -223,8 +233,8 @@ export default function Home() {
         const jarSizeKey = `price${jarSize}` as 'price250' | 'price500' | 'price1000';
 
         return beekeeper.honeyTypes.some((honey) => {
-          const priceForSize = honey[jarSizeKey];
-          return typeof priceForSize === 'number' && !Number.isNaN(priceForSize);
+          const priceForSize = parsePriceValue(honey[jarSizeKey]);
+          return priceForSize !== null;
         });
       });
 
@@ -243,8 +253,10 @@ export default function Home() {
       return false;
     }
 
-    return true;
-  };
+      return true;
+    },
+    [filters]
+  );
 
   const filteredBeekeepers = useMemo(() => {
     const insideRadius = beekeepers.filter((beekeeper: Beekeeper) => {
@@ -285,7 +297,7 @@ export default function Home() {
           return 0;
       }
     });
-  }, [beekeepers, filters, userLocation, sortBy]);
+    }, [beekeepers, filters, matchesCommonFilters, userLocation, sortBy]);
 
   const outsideBeekeepers = useMemo(() => {
     if (!userLocation) {
@@ -303,7 +315,7 @@ export default function Home() {
       .sort(
         (a: Beekeeper, b: Beekeeper) => (a.distance || Infinity) - (b.distance || Infinity)
       );
-  }, [beekeepers, filters, userLocation]);
+  }, [beekeepers, filters, matchesCommonFilters, userLocation]);
 
   const mapBeekeepers = useMemo(() => {
     if (!userLocation) {
@@ -311,16 +323,7 @@ export default function Home() {
     }
 
     return beekeepers.filter((beekeeper: Beekeeper) => matchesCommonFilters(beekeeper));
-  }, [
-    beekeepers,
-    filteredBeekeepers,
-    userLocation,
-    filters.honeyTypes,
-    filters.priceRange,
-    filters.hasWebsite,
-    filters.openNow,
-    filters.jarSizes,
-  ]);
+    }, [beekeepers, filteredBeekeepers, matchesCommonFilters, userLocation]);
 
   const activeBeekeeperIds = useMemo(
     () => filteredBeekeepers.map((beekeeper: Beekeeper) => beekeeper.id),

@@ -1,6 +1,7 @@
 'use client';
 
 import { ChangeEvent, FormEvent, ReactNode, useCallback, useEffect, useRef, useState } from 'react';
+import { getApiErrorMessage } from '@/lib/api/errors';
 import { useRouter } from 'next/navigation';
 import { authApi } from '@/lib/api/auth';
 import {
@@ -173,8 +174,8 @@ export default function AdminDashboardPage() {
         setAdminEmail(profile?.data?.user?.email || '');
         setAuthState('allowed');
         setAuthError(null);
-      } catch (error: any) {
-        setAuthError(error?.response?.data?.message || 'Authentifizierung fehlgeschlagen.');
+      } catch (error: unknown) {
+        setAuthError(getApiErrorMessage(error, 'Authentifizierung fehlgeschlagen.'));
         setAuthState('denied');
       }
     };
@@ -206,8 +207,8 @@ export default function AdminDashboardPage() {
           }
           return beekeepers[0] || null;
         });
-      } catch (error: any) {
-        setListError(error?.response?.data?.message || 'Fehler beim Laden der Imkerliste.');
+      } catch (error: unknown) {
+        setListError(getApiErrorMessage(error, 'Fehler beim Laden der Imkerliste.'));
       } finally {
         setListLoading(false);
       }
@@ -327,8 +328,8 @@ export default function AdminDashboardPage() {
       setEditFeedback(null);
       setGlobalSuccess(response.message || 'Änderungen erfolgreich gespeichert');
       setIsEditModalOpen(false);
-    } catch (error: any) {
-      setEditError(error?.response?.data?.message || 'Aktualisierung fehlgeschlagen.');
+    } catch (error: unknown) {
+      setEditError(getApiErrorMessage(error, 'Aktualisierung fehlgeschlagen.'));
     } finally {
       setSavingEdit(false);
     }
@@ -374,8 +375,8 @@ export default function AdminDashboardPage() {
       setCreateFeedback(response.message || 'Imker wurde angelegt.');
       setCreateForm(emptyCreateForm);
       loadBeekeepersRef.current?.(1, response.data.beekeeper.id);
-    } catch (error: any) {
-      setCreateError(error?.response?.data?.message || 'Neuanlage fehlgeschlagen.');
+    } catch (error: unknown) {
+      setCreateError(getApiErrorMessage(error, 'Neuanlage fehlgeschlagen.'));
     } finally {
       setCreating(false);
     }
@@ -393,8 +394,8 @@ export default function AdminDashboardPage() {
       await adminApi.deleteBeekeeper(selected.id);
       setIsEditModalOpen(false);
       loadBeekeepersRef.current?.(1);
-    } catch (error: any) {
-      setDeleteError(error?.response?.data?.message || 'Löschen fehlgeschlagen.');
+    } catch (error: unknown) {
+      setDeleteError(getApiErrorMessage(error, 'Löschen fehlgeschlagen.'));
     } finally {
       setDeleting(false);
     }

@@ -1,9 +1,10 @@
 'use client';
 
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { ChangeEvent, Suspense, useEffect, useMemo, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { authApi } from '@/lib/api/auth';
 import Link from 'next/link';
+import { getApiErrorMessage } from '@/lib/api/errors';
 
 function ContinueRegistrationInner() {
   const params = useSearchParams();
@@ -74,11 +75,15 @@ function ContinueRegistrationInner() {
       } else {
         setError(res?.message || 'Registrierung konnte nicht abgeschlossen werden');
       }
-    } catch (err: any) {
-      setError(err?.response?.data?.message || 'Fehler beim Abschluss der Registrierung');
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, 'Fehler beim Abschluss der Registrierung'));
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSalutationChange = (event: ChangeEvent<HTMLSelectElement>) => {
+    setSalutation(event.target.value as 'Herr' | 'Frau' | 'Divers' | '');
   };
 
   return (
@@ -163,7 +168,7 @@ function ContinueRegistrationInner() {
                   id="salutation"
                   name="salutation"
                   value={salutation}
-                  onChange={(e) => setSalutation(e.target.value as any)}
+                  onChange={handleSalutationChange}
                   className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
                 >
                   <option value="">Bitte wählen</option>

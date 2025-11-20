@@ -62,7 +62,7 @@ export default function LocationSearch({ onLocationChange, currentLocation }: Lo
       const data = await response.json();
       setSuggestions(data);
       setShowSuggestions(true);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Autocomplete Error:', err);
     } finally {
       setIsLoadingSuggestions(false);
@@ -140,10 +140,11 @@ export default function LocationSearch({ onLocationChange, currentLocation }: Lo
           
           setSearchValue(address);
           onLocationChange({ latitude, longitude, address });
-        } catch (err) {
+        } catch (err: unknown) {
           const address = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
           setSearchValue(address);
           onLocationChange({ latitude, longitude, address });
+          console.error('Reverse geocoding error:', err);
         }
         
         setIsLoadingGPS(false);
@@ -186,7 +187,7 @@ export default function LocationSearch({ onLocationChange, currentLocation }: Lo
       } else {
         setError('Standort nicht gefunden');
       }
-    } catch (err) {
+    } catch (err: unknown) {
       setError('Fehler bei der Suche');
       console.error('Geocoding Error:', err);
     }

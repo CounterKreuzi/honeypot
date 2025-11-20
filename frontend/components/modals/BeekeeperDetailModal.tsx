@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect } from 'react';
-import { X, MapPin, Phone, Globe, Clock, Euro, Navigation } from 'lucide-react';
+import { X, MapPin, Phone, Globe, Clock, Navigation } from 'lucide-react';
+import Image from 'next/image';
 import { Beekeeper } from '@/types/api';
 
 interface BeekeeperDetailModalProps {
@@ -62,10 +63,12 @@ export default function BeekeeperDetailModal({
         {/* Header with Image */}
         <div className="relative h-64 bg-gradient-to-br from-amber-100 to-yellow-100">
           {hasImage ? (
-            <img
+            <Image
               src={imageUrl}
               alt={beekeeper.name}
-              className="w-full h-full object-cover"
+              fill
+              sizes="(max-width: 768px) 100vw, 768px"
+              className="object-cover"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
@@ -254,7 +257,7 @@ export default function BeekeeperDetailModal({
                     {(() => {
                       const formatEuro = (n: number) =>
                         n.toLocaleString('de-AT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                      const toNumber = (v: any): number | null => {
+                      const toNumber = (v: unknown): number | null => {
                         if (v == null) return null;
                         if (typeof v === 'number' && !isNaN(v)) return v;
                         if (typeof v === 'string') {
@@ -274,9 +277,9 @@ export default function BeekeeperDetailModal({
                         return null;
                       };
 
-                      const p250 = toNumber((honey as any).price250);
-                      const p500 = toNumber((honey as any).price500);
-                      const p1000 = toNumber((honey as any).price1000);
+                      const p250 = toNumber(honey.price250);
+                      const p500 = toNumber(honey.price500);
+                      const p1000 = toNumber(honey.price1000);
 
                       if (p250 == null && p500 == null && p1000 == null) return null;
 

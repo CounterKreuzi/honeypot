@@ -4,6 +4,7 @@ import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { authApi } from '@/lib/api/auth';
 import Link from 'next/link';
+import { getApiErrorMessage } from '@/lib/api/errors';
 
 function VerifyEmailInner() {
   const params = useSearchParams();
@@ -30,9 +31,9 @@ function VerifyEmailInner() {
           setStatus('error');
           setMessage(res?.message || 'Verifizierung fehlgeschlagen');
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         setStatus('error');
-        setMessage(err?.response?.data?.message || 'Verifizierung fehlgeschlagen');
+        setMessage(getApiErrorMessage(err, 'Verifizierung fehlgeschlagen'));
       } finally {
         setLoading(false);
       }

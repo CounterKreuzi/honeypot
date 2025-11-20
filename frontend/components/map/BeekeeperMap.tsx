@@ -73,7 +73,7 @@ export default function BeekeeperMap({
       }
       markerLayerRef.current = null;
     };
-  }, []);
+  }, [center, zoom]);
 
   useEffect(() => {
     if (!mapRef.current) {

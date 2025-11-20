@@ -1,7 +1,7 @@
 'use client';
 
 import { Beekeeper } from '@/types/api';
-import { MapPin, Phone, Globe, Clock, Star } from 'lucide-react';
+import { MapPin, Phone, Globe } from 'lucide-react';
 import Image from 'next/image';
 
 interface BeekeeperCardProps {
@@ -22,13 +22,15 @@ export default function BeekeeperCard({ beekeeper, onClick }: BeekeeperCardProps
 
   // Compute minimum price across all available honey types for given weight
   const availableHoneys = Array.isArray(beekeeper.honeyTypes)
-    ? beekeeper.honeyTypes.filter((h) => h && h.available !== false)
+    ? beekeeper.honeyTypes.filter(
+        (h): h is NonNullable<Beekeeper['honeyTypes']>[number] => Boolean(h) && h.available !== false
+      )
     : [];
 
   const getMinPrice = (
     key: 'price250' | 'price500' | 'price1000'
   ): number | null => {
-    const toNumber = (v: any): number | null => {
+    const toNumber = (v: unknown): number | null => {
       if (v == null) return null;
       if (typeof v === 'number' && !isNaN(v)) return v;
       if (typeof v === 'string') {
@@ -51,7 +53,7 @@ export default function BeekeeperCard({ beekeeper, onClick }: BeekeeperCardProps
       return null;
     };
     const prices = availableHoneys
-      .map((h: any) => toNumber(h?.[key]))
+      .map((h) => toNumber(h?.[key]))
       .filter((p: number | null): p is number => typeof p === 'number');
     return prices.length ? Math.min(...prices) : null;
   };
@@ -69,10 +71,12 @@ export default function BeekeeperCard({ beekeeper, onClick }: BeekeeperCardProps
         {/* Image Section */}
         <div className="relative w-full sm:w-64 h-48 sm:h-auto bg-gradient-to-br from-amber-50 to-yellow-100 flex-shrink-0">
           {hasImage ? (
-            <img
+            <Image
               src={imageUrl}
               alt={beekeeper.name}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              fill
+              sizes="(max-width: 640px) 100vw, 256px"
+              className="object-cover group-hover:scale-105 transition-transform duration-300"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
