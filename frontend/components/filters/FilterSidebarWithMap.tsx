@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { X, ChevronDown, ChevronUp, MapPin, Euro, Clock, Maximize2, Package, Info } from 'lucide-react';
+import { ChevronDown, ChevronUp, MapPin, Euro, Clock, Maximize2, Package, Info } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { Beekeeper } from '@/types/api';
 
@@ -17,7 +17,6 @@ const BeekeeperMap = dynamic(() => import('@/components/map/BeekeeperMap'), {
 interface FilterSidebarProps {
   onFilterChange: (filters: FilterState) => void;
   availableHoneyTypes: string[];
-  totalResults: number;
   beekeepers: Beekeeper[];
   onMapExpand: () => void;
   onMarkerClick?: (beekeeper: Beekeeper) => void;
@@ -25,13 +24,15 @@ interface FilterSidebarProps {
   activeBeekeeperIds?: string[];
 }
 
+type JarSize = 250 | 500 | 1000;
+
 export interface FilterState {
   honeyTypes: string[];
   priceRange: [number, number];
   maxDistance: number;
   openNow: boolean;
   hasWebsite: boolean;
-  jarSize: 250 | 500 | 1000 | null;
+  jarSizes: JarSize[];
 }
 
 // ✅ Bessere Werte für ganz Österreich sichtbar
@@ -42,7 +43,6 @@ const LOCATION_ZOOM = 10;
 export default function FilterSidebar({
   onFilterChange,
   availableHoneyTypes,
-  totalResults,
   beekeepers,
   onMapExpand,
   onMarkerClick,
@@ -55,7 +55,7 @@ export default function FilterSidebar({
     maxDistance: 50,
     openNow: false,
     hasWebsite: false,
-    jarSize: null,
+    jarSizes: [],
   });
 
   const [expandedSections, setExpandedSections] = useState({
@@ -65,6 +65,7 @@ export default function FilterSidebar({
 
   const [mapCenter, setMapCenter] = useState<[number, number]>(DEFAULT_CENTER);
   const [mapZoom, setMapZoom] = useState(DEFAULT_ZOOM);
+  const [showPriceInfo, setShowPriceInfo] = useState(false);
 
   // ✅ VERBESSERTE Drag Detection
   const dragStateRef = useRef({
@@ -167,7 +168,7 @@ export default function FilterSidebar({
       maxDistance: 50,
       openNow: false,
       hasWebsite: false,
-      jarSize: null,
+      jarSizes: [],
     };
     setFilters(defaultFilters);
     onFilterChange(defaultFilters);
@@ -179,7 +180,17 @@ export default function FilterSidebar({
     (filters.hasWebsite ? 1 : 0) +
     (filters.maxDistance < 50 ? 1 : 0) +
     (filters.priceRange[0] > 0 || filters.priceRange[1] < 50 ? 1 : 0) +
-    (filters.jarSize ? 1 : 0);
+    (filters.jarSizes.length > 0 ? 1 : 0);
+
+  const isDistanceDisabled = !userLocation;
+
+  const toggleJarSize = (size: JarSize) => {
+    const updatedJarSizes = filters.jarSizes.includes(size)
+      ? filters.jarSizes.filter((jarSize) => jarSize !== size)
+      : [...filters.jarSizes, size];
+
+    updateFilters({ jarSizes: updatedJarSizes });
+  };
 
   // Update map center/zoom when userLocation changes
   useEffect(() => {
@@ -251,7 +262,7 @@ export default function FilterSidebar({
       <div className="bg-white rounded-lg shadow-md border border-gray-200 sticky top-4">
         {/* Header */}
         <div className="p-4 border-b border-gray-200">
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-900">Filter</h2>
             {activeFilterCount > 0 && (
               <button
@@ -262,9 +273,6 @@ export default function FilterSidebar({
               </button>
             )}
           </div>
-          <p className="text-sm text-gray-600">
-            {totalResults} {totalResults === 1 ? 'Ergebnis' : 'Ergebnisse'}
-          </p>
         </div>
 
         <div>
@@ -282,7 +290,10 @@ export default function FilterSidebar({
                   max="200"
                   value={filters.maxDistance}
                   onChange={(e) => updateFilters({ maxDistance: parseInt(e.target.value) })}
-                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-amber-600"
+                  disabled={isDistanceDisabled}
+                  className={`w-full h-2 bg-gray-200 rounded-lg appearance-none accent-amber-600 ${
+                    isDistanceDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+                  }`}
                 />
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-600">1 km</span>
@@ -290,7 +301,7 @@ export default function FilterSidebar({
                 </div>
                 {!userLocation && (
                   <p className="text-xs text-amber-600 mt-2 p-2 bg-amber-50 rounded">
-                    💡 Gib einen Standort ein, um Imker in deiner Nähe zu finden
+                    ℹ️ Gibt einen Standort ein, um den Filter zu nutzen
                   </p>
                 )}
               </div>
@@ -303,13 +314,30 @@ export default function FilterSidebar({
               <Euro className="w-5 h-5 text-gray-600" />
               <div className="flex items-center gap-1">
                 <span className="font-medium text-gray-900">Preis</span>
-                <span
-                  className="inline-flex"
-                  title="Gefiltert wird nach dem günstigsten Preis für die ausgewählten Mengen"
-                  aria-label="Gefiltert wird nach dem günstigsten Preis für die ausgewählten Mengen"
-                >
-                  <Info className="w-4 h-4 text-gray-400" aria-hidden="true" focusable="false" />
-                </span>
+                <div className="relative">
+                  <button
+                    type="button"
+                    aria-describedby="price-filter-tooltip"
+                    aria-expanded={showPriceInfo}
+                    className="inline-flex items-center justify-center rounded focus:outline-none focus:ring-2 focus:ring-amber-600 focus:ring-offset-2"
+                    onMouseEnter={() => setShowPriceInfo(true)}
+                    onMouseLeave={() => setShowPriceInfo(false)}
+                    onFocus={() => setShowPriceInfo(true)}
+                    onBlur={() => setShowPriceInfo(false)}
+                    onClick={() => setShowPriceInfo((prev) => !prev)}
+                  >
+                    <Info className="w-4 h-4 text-gray-400" aria-hidden="true" focusable="false" />
+                  </button>
+                  {showPriceInfo && (
+                    <div
+                      id="price-filter-tooltip"
+                      role="status"
+                      className="absolute left-1/2 top-full z-10 mt-2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-900 px-2 py-1 text-xs font-medium text-white shadow-lg"
+                    >
+                      Gefiltert wird nach dem günstigsten Preis für die ausgewählten Mengen
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
             <div className="px-4 pb-4">
@@ -346,11 +374,9 @@ export default function FilterSidebar({
                   <button
                     key={size}
                     type="button"
-                    onClick={() =>
-                      updateFilters({ jarSize: filters.jarSize === size ? null : (size as 250 | 500 | 1000) })
-                    }
+                    onClick={() => toggleJarSize(size as JarSize)}
                     className={`px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                      filters.jarSize === size
+                      filters.jarSizes.includes(size as JarSize)
                         ? 'border-amber-600 bg-amber-50 text-amber-700'
                         : 'border-gray-200 text-gray-700 hover:border-amber-200'
                     }`}

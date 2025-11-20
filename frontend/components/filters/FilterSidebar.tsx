@@ -6,8 +6,9 @@ import { X, ChevronDown, ChevronUp, MapPin, Euro, Clock, Package, Info } from 'l
 interface FilterSidebarProps {
   onFilterChange: (filters: FilterState) => void;
   availableHoneyTypes: string[];
-  totalResults: number;
 }
+
+type JarSize = 250 | 500 | 1000;
 
 export interface FilterState {
   honeyTypes: string[];
@@ -15,21 +16,17 @@ export interface FilterState {
   maxDistance: number;
   openNow: boolean;
   hasWebsite: boolean;
-  jarSize: 250 | 500 | 1000 | null;
+  jarSizes: JarSize[];
 }
 
-export default function FilterSidebar({
-  onFilterChange,
-  availableHoneyTypes,
-  totalResults,
-}: FilterSidebarProps) {
+export default function FilterSidebar({ onFilterChange, availableHoneyTypes }: FilterSidebarProps) {
   const [filters, setFilters] = useState<FilterState>({
     honeyTypes: [],
     priceRange: [0, 50],
     maxDistance: 50,
     openNow: false,
     hasWebsite: false,
-    jarSize: null,
+    jarSizes: [],
   });
 
   const [expandedSections, setExpandedSections] = useState({
@@ -64,7 +61,7 @@ export default function FilterSidebar({
       maxDistance: 50,
       openNow: false,
       hasWebsite: false,
-      jarSize: null,
+      jarSizes: [],
     };
     setFilters(defaultFilters);
     onFilterChange(defaultFilters);
@@ -76,13 +73,21 @@ export default function FilterSidebar({
     (filters.hasWebsite ? 1 : 0) +
     (filters.maxDistance < 50 ? 1 : 0) +
     (filters.priceRange[0] > 0 || filters.priceRange[1] < 50 ? 1 : 0) +
-    (filters.jarSize ? 1 : 0);
+    (filters.jarSizes.length > 0 ? 1 : 0);
+
+  const toggleJarSize = (size: JarSize) => {
+    const updatedJarSizes = filters.jarSizes.includes(size)
+      ? filters.jarSizes.filter((jarSize) => jarSize !== size)
+      : [...filters.jarSizes, size];
+
+    updateFilters({ jarSizes: updatedJarSizes });
+  };
 
   return (
     <div className="bg-white rounded-lg shadow-md border border-gray-200 sticky top-4">
       {/* Header */}
       <div className="p-4 border-b border-gray-200">
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-900">Filter</h2>
           {activeFilterCount > 0 && (
             <button
@@ -93,9 +98,6 @@ export default function FilterSidebar({
             </button>
           )}
         </div>
-        <p className="text-sm text-gray-600">
-          {totalResults} {totalResults === 1 ? 'Imker' : 'Imker'} gefunden
-        </p>
       </div>
 
       <div className="overflow-y-auto max-h-[calc(100vh-200px)]">
@@ -175,11 +177,9 @@ export default function FilterSidebar({
                 <button
                   key={size}
                   type="button"
-                  onClick={() =>
-                    updateFilters({ jarSize: filters.jarSize === size ? null : (size as 250 | 500 | 1000) })
-                  }
+                  onClick={() => toggleJarSize(size as JarSize)}
                   className={`px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                    filters.jarSize === size
+                    filters.jarSizes.includes(size as JarSize)
                       ? 'border-blue-600 bg-blue-50 text-blue-700'
                       : 'border-gray-200 text-gray-700 hover:border-blue-200'
                   }`}

@@ -13,13 +13,15 @@ import { Loader2, SlidersHorizontal } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
+type JarSize = 250 | 500 | 1000;
+
 interface Filters {
   honeyTypes: string[];
   priceRange: [number, number];
   maxDistance: number;
   hasWebsite: boolean;
   openNow: boolean;
-  jarSize: 250 | 500 | 1000 | null;
+  jarSizes: JarSize[];
 }
 
 interface UserLocation {
@@ -72,7 +74,7 @@ export default function Home() {
     maxDistance: 50,
     hasWebsite: false,
     openNow: false,
-    jarSize: null,
+    jarSizes: [],
   });
 
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
@@ -216,11 +218,14 @@ export default function Home() {
       }
     }
 
-    if (filters.jarSize) {
-      const jarSizeKey = `price${filters.jarSize}` as 'price250' | 'price500' | 'price1000';
-      const hasSelectedSize = beekeeper.honeyTypes.some((honey) => {
-        const priceForSize = honey[jarSizeKey];
-        return typeof priceForSize === 'number' && !Number.isNaN(priceForSize);
+    if (filters.jarSizes.length > 0) {
+      const hasSelectedSize = filters.jarSizes.some((jarSize) => {
+        const jarSizeKey = `price${jarSize}` as 'price250' | 'price500' | 'price1000';
+
+        return beekeeper.honeyTypes.some((honey) => {
+          const priceForSize = honey[jarSizeKey];
+          return typeof priceForSize === 'number' && !Number.isNaN(priceForSize);
+        });
       });
 
       if (!hasSelectedSize) {
@@ -314,7 +319,7 @@ export default function Home() {
     filters.priceRange,
     filters.hasWebsite,
     filters.openNow,
-    filters.jarSize,
+    filters.jarSizes,
   ]);
 
   const activeBeekeeperIds = useMemo(
@@ -407,7 +412,6 @@ export default function Home() {
             <FilterSidebarWithMap
               onFilterChange={setFilters}
               availableHoneyTypes={availableHoneyTypes}
-              totalResults={filteredBeekeepers.length}
               beekeepers={mapBeekeepers}
               onMapExpand={() => setIsMapModalOpen(true)}
               onMarkerClick={handleMarkerClick}
