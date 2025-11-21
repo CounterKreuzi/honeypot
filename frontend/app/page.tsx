@@ -90,6 +90,7 @@ export default function Home() {
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
   const [sortBy, setSortBy] = useState<'distance' | 'name' | 'price'>('distance');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
@@ -104,6 +105,19 @@ export default function Home() {
     if (typeof window !== 'undefined') {
       const token = localStorage.getItem('token');
       setIsLoggedIn(Boolean(token));
+
+      const mediaQuery = window.matchMedia('(min-width: 1024px)');
+      setIsDesktop(mediaQuery.matches);
+
+      const handleResize = (event: MediaQueryListEvent) => {
+        setIsDesktop(event.matches);
+      };
+
+      mediaQuery.addEventListener('change', handleResize);
+
+      return () => {
+        mediaQuery.removeEventListener('change', handleResize);
+      };
     }
   }, []);
 
@@ -345,63 +359,71 @@ export default function Home() {
     setTimeout(() => setSelectedBeekeeper(null), 300);
   };
 
+  const isSidebarVisible = isMobileFilterOpen || isDesktop;
+
   return (
     <main className="min-h-screen bg-gradient-to-br from-amber-50 to-yellow-50">
       {/* Header */}
       <header className="bg-gradient-to-r from-amber-500 to-amber-600 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            {/* Logo & Title */}
-            <div className="flex items-center gap-3">
-              <span className="text-5xl drop-shadow-lg">🍯</span>
-              <div>
-                <h1 className="text-2xl sm:text-3xl font-bold text-white drop-shadow">
-                  Honeypot
-                </h1>
-                <p className="text-xs sm:text-sm text-amber-100">
-                  Finde lokale Imker in deiner Nähe
-                </p>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              {/* Logo & Title */}
+              <div className="flex items-center gap-3">
+                <span className="text-5xl drop-shadow-lg">🍯</span>
+                <div>
+                  <h1 className="text-2xl sm:text-3xl font-bold text-white drop-shadow">
+                    Honeypot
+                  </h1>
+                  <p className="text-xs sm:text-sm text-amber-100">
+                    Finde lokale Imker in deiner Nähe
+                  </p>
+                </div>
+              </div>
+
+              {/* Auth Buttons */}
+              <div className="hidden md:flex items-center gap-3">
+                {isLoggedIn ? (
+                  <>
+                    <Link href="/meinbereich" className="px-4 py-2 text-white hover:bg-white/10 rounded-lg transition-colors font-medium">
+                      Mein Bereich
+                    </Link>
+                    <button
+                      onClick={handleLogout}
+                      className="px-4 py-2 bg-white text-amber-600 hover:bg-amber-50 rounded-lg transition-colors font-semibold"
+                    >
+                      Ausloggen
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Link href="/imker-werden" className="px-4 py-2 text-white hover:bg-white/10 rounded-lg transition-colors font-medium">
+                      Imker werden
+                    </Link>
+                    <Link href="/login" className="px-4 py-2 bg-white text-amber-600 hover:bg-amber-50 rounded-lg transition-colors font-semibold">
+                      Anmelden
+                    </Link>
+                  </>
+                )}
               </div>
             </div>
 
-            {/* Location Search */}
-            <LocationSearch
-              onLocationChange={handleLocationChange}
-              currentLocation={userLocation?.address}
-            />
+            <div className="flex items-center gap-3 w-full">
+              <div className="flex-1 min-w-0">
+                <LocationSearch
+                  onLocationChange={handleLocationChange}
+                  currentLocation={userLocation?.address}
+                />
+              </div>
 
-            {/* Mobile Filter Toggle */}
-            <button
-              onClick={() => setIsMobileFilterOpen(!isMobileFilterOpen)}
-              className="lg:hidden p-2 bg-white text-amber-600 rounded-lg shadow hover:bg-amber-50 transition-colors"
-            >
-              <SlidersHorizontal className="w-6 h-6" />
-            </button>
-
-            {/* Auth Buttons */}
-            <div className="hidden md:flex items-center gap-3">
-              {isLoggedIn ? (
-                <>
-                  <Link href="/meinbereich" className="px-4 py-2 text-white hover:bg-white/10 rounded-lg transition-colors font-medium">
-                    Mein Bereich
-                  </Link>
-                  <button
-                    onClick={handleLogout}
-                    className="px-4 py-2 bg-white text-amber-600 hover:bg-amber-50 rounded-lg transition-colors font-semibold"
-                  >
-                    Ausloggen
-                  </button>
-                </>
-              ) : (
-                <>
-                  <Link href="/imker-werden" className="px-4 py-2 text-white hover:bg-white/10 rounded-lg transition-colors font-medium">
-                    Imker werden
-                  </Link>
-                  <Link href="/login" className="px-4 py-2 bg-white text-amber-600 hover:bg-amber-50 rounded-lg transition-colors font-semibold">
-                    Anmelden
-                  </Link>
-                </>
-              )}
+              {/* Mobile Filter Toggle */}
+              <button
+                onClick={() => setIsMobileFilterOpen(!isMobileFilterOpen)}
+                className="lg:hidden p-2 bg-white text-amber-600 rounded-lg shadow hover:bg-amber-50 transition-colors"
+                aria-label="Filter öffnen"
+              >
+                <SlidersHorizontal className="w-6 h-6" />
+              </button>
             </div>
           </div>
         </div>
@@ -411,7 +433,7 @@ export default function Home() {
       <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Left Sidebar - Map Preview + Filters */}
-          <aside className={`lg:w-80 flex-shrink-0 ${isMobileFilterOpen ? 'block' : 'hidden lg:block'}`}>
+          <aside className={`lg:w-80 flex-shrink-0 ${isSidebarVisible ? 'block' : 'hidden lg:block'}`}>
             <FilterSidebarWithMap
               onFilterChange={setFilters}
               availableHoneyTypes={availableHoneyTypes}
@@ -420,6 +442,7 @@ export default function Home() {
               onMarkerClick={handleMarkerClick}
               userLocation={userLocation ? [userLocation.latitude, userLocation.longitude] : undefined}
               activeBeekeeperIds={activeBeekeeperIds}
+              isVisible={isSidebarVisible}
             />
           </aside>
 
