@@ -27,6 +27,7 @@ interface BeekeeperMapProps {
   userLocation?: [number, number];
   showPopups?: boolean;
   activeBeekeeperIds?: string[];
+  invalidateSizeKey?: unknown;
 }
 
 export default function BeekeeperMap({
@@ -38,6 +39,7 @@ export default function BeekeeperMap({
   userLocation,
   showPopups = true,
   activeBeekeeperIds,
+  invalidateSizeKey,
 }: BeekeeperMapProps) {
   const mapRef = useRef<L.Map | null>(null);
   const markerLayerRef = useRef<L.LayerGroup | null>(null);
@@ -82,6 +84,13 @@ export default function BeekeeperMap({
 
     mapRef.current.setView(center, zoom, { animate: false });
   }, [center, zoom]);
+
+  useEffect(() => {
+    if (!mapRef.current) return;
+
+    mapRef.current.invalidateSize();
+    mapRef.current.setView(center, zoom, { animate: false });
+  }, [invalidateSizeKey, center, zoom]);
 
   useEffect(() => {
     if (!mapRef.current || !markerLayerRef.current) {

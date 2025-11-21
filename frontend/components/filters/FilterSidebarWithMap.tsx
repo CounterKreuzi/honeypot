@@ -22,6 +22,7 @@ interface FilterSidebarProps {
   onMarkerClick?: (beekeeper: Beekeeper) => void;
   userLocation?: [number, number];
   activeBeekeeperIds?: string[];
+  isVisible?: boolean;
 }
 
 type JarSize = 250 | 500 | 1000;
@@ -48,6 +49,7 @@ export default function FilterSidebar({
   onMarkerClick,
   userLocation,
   activeBeekeeperIds,
+  isVisible = true,
 }: FilterSidebarProps) {
   const [filters, setFilters] = useState<FilterState>({
     honeyTypes: [],
@@ -225,6 +227,7 @@ export default function FilterSidebar({
             userLocation={userLocation}
             showPopups={false}
             activeBeekeeperIds={activeBeekeeperIds}
+            invalidateSizeKey={isVisible}
           />
           
           {/* ✅ Hover Overlay nur für visuelles Feedback */}
