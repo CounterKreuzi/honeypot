@@ -67,63 +67,67 @@ export default function BeekeeperCard({ beekeeper, onClick }: BeekeeperCardProps
       onClick={onClick}
       className="bg-white rounded-lg shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer border border-gray-200 overflow-hidden group"
     >
-      <div className="flex flex-row">
-        {/* Image Section */}
-        <div className="relative w-32 h-32 sm:w-64 sm:h-auto bg-gradient-to-br from-amber-50 to-yellow-100 flex-shrink-0">
-          {hasImage ? (
-            <Image
-              src={imageUrl}
-              alt={beekeeper.name}
-              fill
-              sizes="(max-width: 640px) 8rem, 256px"
-              className="object-cover group-hover:scale-105 transition-transform duration-300"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <span className="text-6xl">🍯</span>
-            </div>
-          )}
-          {beekeeper.distance !== undefined && (
-            <div className="absolute top-3 right-3 bg-white px-3 py-1 rounded-full shadow-md">
-              <span className="text-sm font-semibold text-gray-700">
-                {beekeeper.distance} km
-              </span>
-            </div>
-          )}
-        </div>
-
-        {/* Content Section */}
-        <div className="flex-1 p-5">
-          <div className="flex items-start justify-between mb-3">
-            <div>
-              <h3 className="text-xl font-bold text-gray-900 group-hover:text-amber-600 transition-colors">
-                {beekeeper.name}
-              </h3>
-              <div className="flex items-center gap-2 mt-1 text-sm text-gray-600">
-                <MapPin className="w-4 h-4" />
-                <span>
-                  {beekeeper.address}
-                  {beekeeper.city && `, ${beekeeper.city}`}
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row">
+          {/* Image Section */}
+          <div className="relative w-full sm:w-64 h-48 sm:h-auto bg-gradient-to-br from-amber-50 to-yellow-100 flex-shrink-0">
+            {hasImage ? (
+              <Image
+                src={imageUrl}
+                alt={beekeeper.name}
+                fill
+                sizes="(max-width: 640px) 100vw, 256px"
+                className="object-cover group-hover:scale-105 transition-transform duration-300"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <span className="text-6xl">🍯</span>
+              </div>
+            )}
+            {beekeeper.distance !== undefined && (
+              <div className="absolute top-3 right-3 bg-white px-3 py-1 rounded-full shadow-md">
+                <span className="text-sm font-semibold text-gray-700">
+                  {beekeeper.distance} km
                 </span>
               </div>
-            </div>
-            {isOpenNow && (
-              <span className="bg-green-100 text-green-700 text-xs font-semibold px-3 py-1 rounded-full">
-                Geöffnet
-              </span>
             )}
           </div>
 
-          {/* Description */}
-          {beekeeper.description && (
-            <p className="text-sm text-gray-600 mb-3 line-clamp-2">
-              {beekeeper.description}
-            </p>
-          )}
+          {/* Content Section */}
+          <div className="flex-1 p-5">
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <h3 className="text-xl font-bold text-gray-900 group-hover:text-amber-600 transition-colors">
+                  {beekeeper.name}
+                </h3>
+                <div className="flex items-center gap-2 mt-1 text-sm text-gray-600">
+                  <MapPin className="w-4 h-4" />
+                  <span>
+                    {beekeeper.address}
+                    {beekeeper.city && `, ${beekeeper.city}`}
+                  </span>
+                </div>
+              </div>
+              {isOpenNow && (
+                <span className="bg-green-100 text-green-700 text-xs font-semibold px-3 py-1 rounded-full">
+                  Geöffnet
+                </span>
+              )}
+            </div>
 
+            {/* Description */}
+            {beekeeper.description && (
+              <p className="text-sm text-gray-600 line-clamp-2">
+                {beekeeper.description}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="px-5 pb-5 space-y-3">
           {/* Honey Types */}
           {beekeeper.honeyTypes.length > 0 && (
-            <div className="mb-3">
+            <div>
               <div className="flex flex-wrap gap-2">
                 {beekeeper.honeyTypes.slice(0, 3).map((honey) => (
                   <span
@@ -144,7 +148,7 @@ export default function BeekeeperCard({ beekeeper, onClick }: BeekeeperCardProps
 
           {/* Price overview by weight */}
           {(min250 != null || min500 != null || min1000 != null) && (
-            <div className="mb-3 text-sm text-gray-700 flex flex-wrap gap-x-4 gap-y-1">
+            <div className="text-sm text-gray-700 flex flex-wrap gap-x-4 gap-y-1">
               {min250 != null && (
                 <span>
                   <span className="text-gray-600">250 g ab </span>
@@ -183,7 +187,7 @@ export default function BeekeeperCard({ beekeeper, onClick }: BeekeeperCardProps
           </div>
 
           {/* CTA Button */}
-          <div className="mt-4 pt-4 border-t border-gray-100">
+          <div className="pt-3 border-t border-gray-100">
             <button className="w-full sm:w-auto bg-amber-500 hover:bg-amber-600 text-white font-semibold px-6 py-2 rounded-lg transition-colors">
               Details anzeigen
             </button>
