@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import crypto from 'crypto';
 import { AppDataSource } from '../config/database';
 import { Beekeeper } from '../entities/Beekeeper';
+import { HoneyType } from '../entities/HoneyType';
 import { User } from '../entities/User';
 import { hashPassword } from '../utils/password';
 import { emailService } from '../services/email.service';
@@ -9,8 +10,10 @@ import {
   adminCreateBeekeeperSchema,
   adminUpdateBeekeeperSchema,
 } from '../utils/adminValidation';
+import { addHoneyTypeSchema, updateHoneyTypeSchema } from '../utils/beekeeperValidation';
 
 const beekeeperRepository = AppDataSource.getRepository(Beekeeper);
+const honeyTypeRepository = AppDataSource.getRepository(HoneyType);
 const userRepository = AppDataSource.getRepository(User);
 
 function generateVerificationToken(): string {
@@ -336,5 +339,114 @@ export const deleteBeekeeper = async (
   } catch (error) {
     console.error('Delete beekeeper error:', error);
     res.status(500).json({ success: false, message: 'Fehler beim Löschen des Imkers' });
+  }
+};
+
+export const addHoneyTypeForBeekeeper = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { beekeeperId } = req.params;
+    const { error, value } = addHoneyTypeSchema.validate(req.body);
+    if (error) {
+      res.status(400).json({ success: false, message: error.details[0].message });
+      return;
+    }
+
+    const beekeeper = await beekeeperRepository.findOne({ where: { id: beekeeperId } });
+    if (!beekeeper) {
+      res.status(404).json({ success: false, message: 'Imker nicht gefunden' });
+      return;
+    }
+
+    const honeyType = honeyTypeRepository.create({ ...value, beekeeper });
+    await honeyTypeRepository.save(honeyType);
+
+    const updatedBeekeeper = await beekeeperRepository.findOne({
+      where: { id: beekeeperId },
+      relations: ['user', 'honeyTypes'],
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Honigsorte erfolgreich angelegt',
+      data: {
+        honeyType,
+        beekeeper: updatedBeekeeper,
+      },
+    });
+  } catch (error) {
+    console.error('Admin add honey type error:', error);
+    res.status(500).json({ success: false, message: 'Fehler beim Anlegen der Honigsorte' });
+  }
+};
+
+export const updateHoneyTypeForBeekeeper = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { beekeeperId, honeyTypeId } = req.params;
+    const { error, value } = updateHoneyTypeSchema.validate(req.body);
+    if (error) {
+      res.status(400).json({ success: false, message: error.details[0].message });
+      return;
+    }
+
+    const honeyType = await honeyTypeRepository.findOne({
+      where: { id: honeyTypeId },
+      relations: ['beekeeper'],
+    });
+
+    if (!honeyType || honeyType.beekeeper.id !== beekeeperId) {
+      res.status(404).json({ success: false, message: 'Honigsorte nicht gefunden' });
+      return;
+    }
+
+    Object.assign(honeyType, value);
+    await honeyTypeRepository.save(honeyType);
+
+    const updatedBeekeeper = await beekeeperRepository.findOne({
+      where: { id: beekeeperId },
+      relations: ['user', 'honeyTypes'],
+    });
+
+    res.json({
+      success: true,
+      message: 'Honigsorte erfolgreich aktualisiert',
+      data: {
+        honeyType,
+        beekeeper: updatedBeekeeper,
+      },
+    });
+  } catch (error) {
+    console.error('Admin update honey type error:', error);
+    res.status(500).json({ success: false, message: 'Fehler beim Aktualisieren der Honigsorte' });
+  }
+};
+
+export const deleteHoneyTypeForBeekeeper = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { beekeeperId, honeyTypeId } = req.params;
+    const honeyType = await honeyTypeRepository.findOne({
+      where: { id: honeyTypeId },
+      relations: ['beekeeper'],
+    });
+
+    if (!honeyType || honeyType.beekeeper.id !== beekeeperId) {
+      res.status(404).json({ success: false, message: 'Honigsorte nicht gefunden' });
+      return;
+    }
+
+    await honeyTypeRepository.remove(honeyType);
+
+    res.json({ success: true, message: 'Honigsorte wurde gelöscht' });
+  } catch (error) {
+    console.error('Admin delete honey type error:', error);
+    res.status(500).json({ success: false, message: 'Fehler beim Löschen der Honigsorte' });
   }
 };
