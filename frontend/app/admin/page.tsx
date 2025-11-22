@@ -10,6 +10,7 @@ import {
   AdminCreateBeekeeperPayload,
   AdminUpdateBeekeeperPayload,
 } from '@/lib/api/admin';
+import { HoneyType } from '@/types/api';
 
 const PAGE_SIZE = 20;
 
@@ -113,6 +114,21 @@ const numberFromInput = (value: string): number | undefined => {
   return Number.isNaN(parsed) ? undefined : parsed;
 };
 
+const parseCommaNumber = (value: string): number | null => {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const normalized = trimmed.replace(/\./g, '').replace(',', '.');
+  const parsed = Number(normalized);
+  return Number.isNaN(parsed) ? null : parsed;
+};
+
+const toCommaString = (value: number | string | null | undefined): string => {
+  if (value == null) return '';
+  const asNumber = typeof value === 'string' ? Number(value) : value;
+  if (Number.isNaN(asNumber)) return '';
+  return String(asNumber).replace('.', ',');
+};
+
 export default function AdminDashboardPage() {
   const router = useRouter();
   const [authState, setAuthState] = useState<AuthState>('checking');
@@ -144,6 +160,23 @@ export default function AdminDashboardPage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [globalSuccess, setGlobalSuccess] = useState<string | null>(null);
+  const [honeyError, setHoneyError] = useState<string | null>(null);
+  const [honeyFeedback, setHoneyFeedback] = useState<string | null>(null);
+  const [savingHoney, setSavingHoney] = useState(false);
+  const [newHoneyName, setNewHoneyName] = useState('');
+  const [newHoneyDescription, setNewHoneyDescription] = useState('');
+  const [newHoneyPrice250, setNewHoneyPrice250] = useState('');
+  const [newHoneyPrice500, setNewHoneyPrice500] = useState('');
+  const [newHoneyPrice1000, setNewHoneyPrice1000] = useState('');
+  const [newHoneyAvailable, setNewHoneyAvailable] = useState(true);
+  const [editingHoney, setEditingHoney] = useState<HoneyType | null>(null);
+  const [editHoneyName, setEditHoneyName] = useState('');
+  const [editHoneyDescription, setEditHoneyDescription] = useState('');
+  const [editHoneyPrice250, setEditHoneyPrice250] = useState('');
+  const [editHoneyPrice500, setEditHoneyPrice500] = useState('');
+  const [editHoneyPrice1000, setEditHoneyPrice1000] = useState('');
+  const [editHoneyAvailable, setEditHoneyAvailable] = useState(true);
+  const [deleteHoneyTarget, setDeleteHoneyTarget] = useState<HoneyType | null>(null);
 
   const activeFilterValue = activeFilter === 'all' ? undefined : activeFilter === 'active';
   const verifiedFilterValue = verifiedFilter === 'all' ? undefined : verifiedFilter === 'verified';
@@ -216,6 +249,23 @@ export default function AdminDashboardPage() {
     [activeFilterValue, searchQuery, verifiedFilterValue]
   );
 
+  const refreshBeekeeper = useCallback(
+    async (beekeeperId: string) => {
+      try {
+        const response = await adminApi.getBeekeeper(beekeeperId);
+        if (response.success) {
+          setSelected(response.data);
+          setItems((prev) =>
+            prev.map((item) => (item.id === response.data.id ? response.data : item))
+          );
+        }
+      } catch (error: unknown) {
+        setHoneyError(getApiErrorMessage(error, 'Imker konnte nicht aktualisiert werden.'));
+      }
+    },
+    []
+  );
+
   const loadBeekeepersRef = useRef(loadBeekeepers);
   useEffect(() => {
     loadBeekeepersRef.current = loadBeekeepers;
@@ -253,6 +303,16 @@ export default function AdminDashboardPage() {
     });
     setEditFeedback(null);
     setEditError(null);
+    setHoneyError(null);
+    setHoneyFeedback(null);
+    setNewHoneyName('');
+    setNewHoneyDescription('');
+    setNewHoneyPrice250('');
+    setNewHoneyPrice500('');
+    setNewHoneyPrice1000('');
+    setNewHoneyAvailable(true);
+    setEditingHoney(null);
+    setDeleteHoneyTarget(null);
   }, [selected]);
 
   const handleEditInputChange = (
@@ -398,6 +458,106 @@ export default function AdminDashboardPage() {
       setDeleteError(getApiErrorMessage(error, 'Löschen fehlgeschlagen.'));
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const resetHoneyForm = () => {
+    setNewHoneyName('');
+    setNewHoneyDescription('');
+    setNewHoneyPrice250('');
+    setNewHoneyPrice500('');
+    setNewHoneyPrice1000('');
+    setNewHoneyAvailable(true);
+  };
+
+  const handleAddHoneyType = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!selected) return;
+    setSavingHoney(true);
+    setHoneyError(null);
+    setHoneyFeedback(null);
+    try {
+      await adminApi.addHoneyType(selected.id, {
+        name: newHoneyName.trim(),
+        description: newHoneyDescription.trim() || null,
+        price250: newHoneyPrice250.trim() ? parseCommaNumber(newHoneyPrice250) : null,
+        price500: newHoneyPrice500.trim() ? parseCommaNumber(newHoneyPrice500) : null,
+        price1000: newHoneyPrice1000.trim() ? parseCommaNumber(newHoneyPrice1000) : null,
+        available: newHoneyAvailable,
+      });
+      await refreshBeekeeper(selected.id);
+      resetHoneyForm();
+      setHoneyFeedback('Honigsorte angelegt.');
+    } catch (error: unknown) {
+      setHoneyError(getApiErrorMessage(error, 'Honigsorte konnte nicht angelegt werden.'));
+    } finally {
+      setSavingHoney(false);
+    }
+  };
+
+  const openHoneyEditor = (honey: HoneyType) => {
+    setEditingHoney(honey);
+    setEditHoneyName(honey.name || '');
+    setEditHoneyDescription(honey.description || '');
+    setEditHoneyPrice250(honey.price250 != null ? toCommaString(honey.price250) : '');
+    setEditHoneyPrice500(honey.price500 != null ? toCommaString(honey.price500) : '');
+    setEditHoneyPrice1000(honey.price1000 != null ? toCommaString(honey.price1000) : '');
+    setEditHoneyAvailable(Boolean(honey.available));
+    setHoneyError(null);
+    setHoneyFeedback(null);
+  };
+
+  const handleUpdateHoneyType = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!selected || !editingHoney) return;
+    setSavingHoney(true);
+    setHoneyError(null);
+    setHoneyFeedback(null);
+    try {
+      await adminApi.updateHoneyType(selected.id, editingHoney.id, {
+        name: editHoneyName.trim() || undefined,
+        description: editHoneyDescription.trim() || null,
+        price250: editHoneyPrice250.trim() ? parseCommaNumber(editHoneyPrice250) : null,
+        price500: editHoneyPrice500.trim() ? parseCommaNumber(editHoneyPrice500) : null,
+        price1000: editHoneyPrice1000.trim() ? parseCommaNumber(editHoneyPrice1000) : null,
+        available: editHoneyAvailable,
+      });
+      await refreshBeekeeper(selected.id);
+      setEditingHoney(null);
+      setHoneyFeedback('Honigsorte aktualisiert.');
+    } catch (error: unknown) {
+      setHoneyError(getApiErrorMessage(error, 'Honigsorte konnte nicht aktualisiert werden.'));
+    } finally {
+      setSavingHoney(false);
+    }
+  };
+
+  const handleToggleHoneyAvailability = async (honey: HoneyType) => {
+    if (!selected) return;
+    setHoneyError(null);
+    try {
+      await adminApi.updateHoneyType(selected.id, honey.id, {
+        available: !honey.available,
+      });
+      await refreshBeekeeper(selected.id);
+    } catch (error: unknown) {
+      setHoneyError(getApiErrorMessage(error, 'Status konnte nicht geändert werden.'));
+    }
+  };
+
+  const handleDeleteHoneyType = async () => {
+    if (!selected || !deleteHoneyTarget) return;
+    setSavingHoney(true);
+    setHoneyError(null);
+    try {
+      await adminApi.deleteHoneyType(selected.id, deleteHoneyTarget.id);
+      await refreshBeekeeper(selected.id);
+      setHoneyFeedback('Honigsorte gelöscht.');
+    } catch (error: unknown) {
+      setHoneyError(getApiErrorMessage(error, 'Honigsorte konnte nicht gelöscht werden.'));
+    } finally {
+      setSavingHoney(false);
+      setDeleteHoneyTarget(null);
     }
   };
 
@@ -930,6 +1090,272 @@ export default function AdminDashboardPage() {
                 </button>
               </div>
             </form>
+
+            <div className="mt-8 border-t border-gray-100 pt-4">
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-amber-700 font-semibold">Honigsorten</p>
+                  <h4 className="text-lg font-semibold text-gray-900">Sorten verwalten</h4>
+                </div>
+                <span className="text-xs text-gray-500">Änderungen gelten sofort für diesen Imker.</span>
+              </div>
+
+              <form
+                className="grid grid-cols-1 gap-3 sm:grid-cols-2 bg-amber-50 border border-amber-100 rounded-xl p-4"
+                onSubmit={handleAddHoneyType}
+              >
+                <div className="sm:col-span-2">
+                  <label className="text-sm font-medium text-gray-700">Name *</label>
+                  <input
+                    type="text"
+                    value={newHoneyName}
+                    onChange={(e) => setNewHoneyName(e.target.value)}
+                    required
+                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="text-sm font-medium text-gray-700">Beschreibung</label>
+                  <input
+                    type="text"
+                    value={newHoneyDescription}
+                    onChange={(e) => setNewHoneyDescription(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Preis 250 g</label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={newHoneyPrice250}
+                    onChange={(e) => setNewHoneyPrice250(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                    placeholder="z.B. 4,50"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Preis 500 g</label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={newHoneyPrice500}
+                    onChange={(e) => setNewHoneyPrice500(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                    placeholder="z.B. 6,90"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Preis 1000 g</label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={newHoneyPrice1000}
+                    onChange={(e) => setNewHoneyPrice1000(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                    placeholder="z.B. 11,50"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={newHoneyAvailable}
+                    onChange={(e) => setNewHoneyAvailable(e.target.checked)}
+                  />
+                  <span className="text-sm text-gray-700">Sichtbar</span>
+                </div>
+                <div className="sm:col-span-2 flex flex-wrap gap-3 justify-end">
+                  <button
+                    type="button"
+                    onClick={resetHoneyForm}
+                    className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700"
+                  >
+                    Zurücksetzen
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingHoney || !newHoneyName.trim()}
+                    className="rounded-lg bg-amber-600 px-4 py-2 text-white font-semibold disabled:opacity-50"
+                  >
+                    {savingHoney ? 'Speichere ...' : 'Honigsorte anlegen'}
+                  </button>
+                </div>
+              </form>
+
+              {honeyError && <p className="mt-2 text-sm text-red-600">{honeyError}</p>}
+              {honeyFeedback && <p className="mt-2 text-sm text-emerald-600">{honeyFeedback}</p>}
+
+              <div className="mt-4 space-y-3">
+                {selected.honeyTypes && selected.honeyTypes.length > 0 ? (
+                  selected.honeyTypes.map((honey) => (
+                    <div
+                      key={honey.id}
+                      className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="space-y-1">
+                          <p className="text-base font-semibold text-gray-900">{honey.name}</p>
+                          {honey.description && (
+                            <p className="text-sm text-gray-600">{honey.description}</p>
+                          )}
+                          <div className="mt-2 flex flex-wrap gap-2 text-xs text-gray-700">
+                            {honey.price250 != null && (
+                              <span className="inline-flex items-center rounded border border-amber-200 bg-amber-50 px-2 py-1">
+                                250 g · {toCommaString(honey.price250)} €
+                              </span>
+                            )}
+                            {honey.price500 != null && (
+                              <span className="inline-flex items-center rounded border border-amber-200 bg-amber-50 px-2 py-1">
+                                500 g · {toCommaString(honey.price500)} €
+                              </span>
+                            )}
+                            {honey.price1000 != null && (
+                              <span className="inline-flex items-center rounded border border-amber-200 bg-amber-50 px-2 py-1">
+                                1000 g · {toCommaString(honey.price1000)} €
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end gap-2">
+                          <span
+                            className={`text-xs font-semibold ${
+                              honey.available ? 'text-emerald-700' : 'text-gray-500'
+                            }`}
+                          >
+                            {honey.available ? 'Sichtbar' : 'Versteckt'}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleHoneyAvailability(honey)}
+                            className="rounded-lg border border-gray-300 px-3 py-1 text-xs text-gray-700"
+                          >
+                            {honey.available ? 'Verstecken' : 'Sichtbar schalten'}
+                          </button>
+                        </div>
+                      </div>
+
+                      {editingHoney?.id === honey.id ? (
+                        <form
+                          className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 bg-gray-50 border border-gray-200 rounded-lg p-3"
+                          onSubmit={handleUpdateHoneyType}
+                        >
+                          <div className="sm:col-span-2">
+                            <label className="text-sm font-medium text-gray-700">Name</label>
+                            <input
+                              type="text"
+                              value={editHoneyName}
+                              onChange={(e) => setEditHoneyName(e.target.value)}
+                              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                            />
+                          </div>
+                          <div className="sm:col-span-2">
+                            <label className="text-sm font-medium text-gray-700">Beschreibung</label>
+                            <input
+                              type="text"
+                              value={editHoneyDescription}
+                              onChange={(e) => setEditHoneyDescription(e.target.value)}
+                              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-gray-700">Preis 250 g</label>
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={editHoneyPrice250}
+                              onChange={(e) => setEditHoneyPrice250(e.target.value)}
+                              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-gray-700">Preis 500 g</label>
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={editHoneyPrice500}
+                              onChange={(e) => setEditHoneyPrice500(e.target.value)}
+                              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-gray-700">Preis 1000 g</label>
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={editHoneyPrice1000}
+                              onChange={(e) => setEditHoneyPrice1000(e.target.value)}
+                              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                            />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={editHoneyAvailable}
+                              onChange={(e) => setEditHoneyAvailable(e.target.checked)}
+                            />
+                            <span className="text-sm text-gray-700">Sichtbar</span>
+                          </div>
+                          <div className="sm:col-span-2 flex flex-wrap justify-end gap-3">
+                            <button
+                              type="button"
+                              onClick={() => setEditingHoney(null)}
+                              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700"
+                            >
+                              Abbrechen
+                            </button>
+                            <button
+                              type="submit"
+                              disabled={savingHoney}
+                              className="rounded-lg bg-amber-600 px-4 py-2 text-white font-semibold disabled:opacity-50"
+                            >
+                              {savingHoney ? 'Speichere ...' : 'Speichern'}
+                            </button>
+                          </div>
+                        </form>
+                      ) : (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => openHoneyEditor(honey)}
+                            className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-700"
+                          >
+                            Bearbeiten
+                          </button>
+                          {deleteHoneyTarget?.id === honey.id ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => setDeleteHoneyTarget(null)}
+                                className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-700"
+                              >
+                                Abbrechen
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleDeleteHoneyType}
+                                className="rounded-lg bg-red-600 px-3 py-1.5 text-xs text-white"
+                              >
+                                Löschen bestätigen
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setDeleteHoneyTarget(honey)}
+                              className="rounded-lg bg-red-50 px-3 py-1.5 text-xs text-red-700"
+                            >
+                              Löschen
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-gray-500">Noch keine Honigsorten hinterlegt.</p>
+                )}
+              </div>
+            </div>
           </>
         ) : (
           <p className="text-sm text-gray-500">Kein Eintrag ausgewählt.</p>

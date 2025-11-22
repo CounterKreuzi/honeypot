@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import type { Beekeeper, OpeningHours } from '@/types/api';
+import type { Beekeeper, HoneyType, OpeningHours } from '@/types/api';
 
 export interface AdminBeekeeper extends Beekeeper {
   salutation?: string | null;
@@ -116,6 +116,53 @@ export const adminApi = {
   deleteBeekeeper: async (id: string) => {
     const response = await apiClient.delete<{ success: boolean; message: string }>(
       `/api/admin/beekeepers/${id}`
+    );
+    return response.data;
+  },
+  addHoneyType: async (
+    beekeeperId: string,
+    payload: {
+      name: string;
+      description?: string | null;
+      price?: number | null;
+      unit?: string | null;
+      available?: boolean;
+      price250?: number | null;
+      price500?: number | null;
+      price1000?: number | null;
+    }
+  ) => {
+    const response = await apiClient.post<{
+      success: boolean;
+      message: string;
+      data: { honeyType: HoneyType; beekeeper?: AdminBeekeeper | null };
+    }>(`/api/admin/beekeepers/${beekeeperId}/honey-types`, payload);
+    return response.data;
+  },
+  updateHoneyType: async (
+    beekeeperId: string,
+    honeyTypeId: string,
+    payload: {
+      name?: string;
+      description?: string | null;
+      price?: number | null;
+      unit?: string | null;
+      available?: boolean;
+      price250?: number | null;
+      price500?: number | null;
+      price1000?: number | null;
+    }
+  ) => {
+    const response = await apiClient.put<{
+      success: boolean;
+      message: string;
+      data: { honeyType: HoneyType; beekeeper?: AdminBeekeeper | null };
+    }>(`/api/admin/beekeepers/${beekeeperId}/honey-types/${honeyTypeId}`, payload);
+    return response.data;
+  },
+  deleteHoneyType: async (beekeeperId: string, honeyTypeId: string) => {
+    const response = await apiClient.delete<{ success: boolean; message: string }>(
+      `/api/admin/beekeepers/${beekeeperId}/honey-types/${honeyTypeId}`
     );
     return response.data;
   },
