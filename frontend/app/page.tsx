@@ -367,9 +367,9 @@ export default function Home() {
       <header className="bg-gradient-to-r from-amber-500 to-amber-600 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex flex-col gap-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex flex-col lg:flex-row items-start lg:items-center gap-4 lg:gap-6">
               {/* Logo & Title */}
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-shrink-0">
                 <span className="text-5xl drop-shadow-lg">🍯</span>
                 <div>
                   <h1 className="text-2xl sm:text-3xl font-bold text-white drop-shadow">
@@ -379,6 +379,13 @@ export default function Home() {
                     Finde lokale Imker in deiner Nähe
                   </p>
                 </div>
+              </div>
+
+              <div className="hidden lg:flex flex-1 min-w-0">
+                <LocationSearch
+                  onLocationChange={handleLocationChange}
+                  currentLocation={userLocation?.address}
+                />
               </div>
 
               {/* Auth Buttons */}
@@ -408,7 +415,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="flex items-center gap-3 w-full">
+            <div className="flex items-center gap-3 w-full lg:hidden">
               <div className="flex-1 min-w-0">
                 <LocationSearch
                   onLocationChange={handleLocationChange}
