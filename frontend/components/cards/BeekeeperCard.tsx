@@ -67,15 +67,15 @@ export default function BeekeeperCard({ beekeeper, onClick }: BeekeeperCardProps
       onClick={onClick}
       className="bg-white rounded-lg shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer border border-gray-200 overflow-hidden group"
     >
-      <div className="flex flex-col sm:flex-row">
+      <div className="flex flex-row">
         {/* Image Section */}
-        <div className="relative w-full sm:w-64 h-48 sm:h-auto bg-gradient-to-br from-amber-50 to-yellow-100 flex-shrink-0">
+        <div className="relative w-32 sm:w-64 aspect-[4/3] bg-gradient-to-br from-amber-50 to-yellow-100 flex-shrink-0">
           {hasImage ? (
             <Image
               src={imageUrl}
               alt={beekeeper.name}
               fill
-              sizes="(max-width: 640px) 100vw, 256px"
+              sizes="(max-width: 640px) 128px, 256px"
               className="object-cover group-hover:scale-105 transition-transform duration-300"
             />
           ) : (
@@ -93,7 +93,7 @@ export default function BeekeeperCard({ beekeeper, onClick }: BeekeeperCardProps
         </div>
 
         {/* Content Section */}
-        <div className="flex-1 p-5">
+        <div className="flex-1 p-5 flex flex-col">
           <div className="flex items-start justify-between mb-3">
             <div>
               <h3 className="text-xl font-bold text-gray-900 group-hover:text-amber-600 transition-colors">
