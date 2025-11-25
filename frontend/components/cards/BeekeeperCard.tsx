@@ -3,6 +3,7 @@
 import { Beekeeper } from '@/types/api';
 import { MapPin, Phone, Globe } from 'lucide-react';
 import Image from 'next/image';
+import { useState } from 'react';
 
 interface BeekeeperCardProps {
   beekeeper: Beekeeper;
@@ -10,6 +11,7 @@ interface BeekeeperCardProps {
 }
 
 export default function BeekeeperCard({ beekeeper, onClick }: BeekeeperCardProps) {
+  const [showDetails, setShowDetails] = useState(false);
   const hasImage = beekeeper.photo || beekeeper.logo;
   const imageUrl = beekeeper.photo || beekeeper.logo || '/placeholder-honey.jpg';
 
@@ -67,15 +69,15 @@ export default function BeekeeperCard({ beekeeper, onClick }: BeekeeperCardProps
       onClick={onClick}
       className="bg-white rounded-lg shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer border border-gray-200 overflow-hidden group"
     >
-      <div className="flex flex-row">
+      <div className="flex flex-col sm:flex-row">
         {/* Image Section */}
-        <div className="relative w-28 sm:w-64 aspect-[3/4] bg-gradient-to-br from-amber-50 to-yellow-100 flex-shrink-0">
+        <div className="relative w-full sm:w-64 aspect-[4/3] sm:aspect-[3/4] bg-gradient-to-br from-amber-50 to-yellow-100 flex-shrink-0">
           {hasImage ? (
             <Image
               src={imageUrl}
               alt={beekeeper.name}
               fill
-              sizes="(max-width: 640px) 112px, 256px"
+              sizes="(max-width: 640px) 100vw, 256px"
               className="object-cover group-hover:scale-105 transition-transform duration-300"
             />
           ) : (
@@ -93,8 +95,8 @@ export default function BeekeeperCard({ beekeeper, onClick }: BeekeeperCardProps
         </div>
 
         {/* Content Section */}
-        <div className="flex-1 p-5 flex flex-col">
-          <div className="flex items-start justify-between mb-3">
+        <div className="flex-1 p-5 flex flex-col gap-3">
+          <div className="flex items-start justify-between">
             <div>
               <h3 className="text-xl font-bold text-gray-900 group-hover:text-amber-600 transition-colors">
                 {beekeeper.name}
@@ -113,17 +115,28 @@ export default function BeekeeperCard({ beekeeper, onClick }: BeekeeperCardProps
               </span>
             )}
           </div>
+          <button
+            type="button"
+            className="sm:hidden inline-flex items-center text-amber-700 text-sm font-semibold underline underline-offset-4 w-fit"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowDetails((prev) => !prev);
+            }}
+            aria-expanded={showDetails}
+          >
+            {showDetails ? 'Weniger anzeigen' : 'Mehr anzeigen'}
+          </button>
 
-          {/* Description */}
-          {beekeeper.description && (
-            <p className="text-sm text-gray-600 mb-3 line-clamp-2">
-              {beekeeper.description}
-            </p>
-          )}
+          <div className={`${showDetails ? 'flex' : 'hidden'} sm:flex flex-col gap-3`}>
+            {/* Description */}
+            {beekeeper.description && (
+              <p className="text-sm text-gray-600 line-clamp-2">
+                {beekeeper.description}
+              </p>
+            )}
 
-          {/* Honey Types */}
-          {beekeeper.honeyTypes.length > 0 && (
-            <div className="mb-3">
+            {/* Honey Types */}
+            {beekeeper.honeyTypes.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {beekeeper.honeyTypes.slice(0, 3).map((honey) => (
                   <span
@@ -139,51 +152,51 @@ export default function BeekeeperCard({ beekeeper, onClick }: BeekeeperCardProps
                   </span>
                 )}
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Price overview by weight */}
-          {(min250 != null || min500 != null || min1000 != null) && (
-            <div className="mb-3 text-sm text-gray-700 flex flex-wrap gap-x-4 gap-y-1">
-              {min250 != null && (
-                <span>
-                  <span className="text-gray-600">250 g ab </span>
-                  <span className="font-semibold text-amber-600">€ {formatEuro(min250)}</span>
-                </span>
-              )}
-              {min500 != null && (
-                <span>
-                  <span className="text-gray-600">500 g ab </span>
-                  <span className="font-semibold text-amber-600">€ {formatEuro(min500)}</span>
-                </span>
-              )}
-              {min1000 != null && (
-                <span>
-                  <span className="text-gray-600">1000 g ab </span>
-                  <span className="font-semibold text-amber-600">€ {formatEuro(min1000)}</span>
-                </span>
-              )}
-            </div>
-          )}
-
-          {/* Contact Info */}
-          <div className="flex flex-wrap gap-4 text-sm text-gray-600">
-            {beekeeper.phone && (
-              <div className="flex items-center gap-1">
-                <Phone className="w-4 h-4" />
-                <span>{beekeeper.phone}</span>
+            {/* Price overview by weight */}
+            {(min250 != null || min500 != null || min1000 != null) && (
+              <div className="text-sm text-gray-700 flex flex-wrap gap-x-4 gap-y-1">
+                {min250 != null && (
+                  <span>
+                    <span className="text-gray-600">250 g ab </span>
+                    <span className="font-semibold text-amber-600">€ {formatEuro(min250)}</span>
+                  </span>
+                )}
+                {min500 != null && (
+                  <span>
+                    <span className="text-gray-600">500 g ab </span>
+                    <span className="font-semibold text-amber-600">€ {formatEuro(min500)}</span>
+                  </span>
+                )}
+                {min1000 != null && (
+                  <span>
+                    <span className="text-gray-600">1000 g ab </span>
+                    <span className="font-semibold text-amber-600">€ {formatEuro(min1000)}</span>
+                  </span>
+                )}
               </div>
             )}
-            {beekeeper.website && (
-              <div className="flex items-center gap-1">
-                <Globe className="w-4 h-4" />
-                <span className="text-blue-600">Online-Shop</span>
-              </div>
-            )}
+
+            {/* Contact Info */}
+            <div className="flex flex-wrap gap-4 text-sm text-gray-600">
+              {beekeeper.phone && (
+                <div className="flex items-center gap-1">
+                  <Phone className="w-4 h-4" />
+                  <span>{beekeeper.phone}</span>
+                </div>
+              )}
+              {beekeeper.website && (
+                <div className="flex items-center gap-1">
+                  <Globe className="w-4 h-4" />
+                  <span className="text-blue-600">Online-Shop</span>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* CTA Button */}
-          <div className="mt-4 pt-4 border-t border-gray-100">
+          <div className="pt-3 border-t border-gray-100">
             <button className="w-full sm:w-auto bg-amber-500 hover:bg-amber-600 text-white font-semibold px-6 py-2 rounded-lg transition-colors">
               Details anzeigen
             </button>
