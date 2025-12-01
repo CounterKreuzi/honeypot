@@ -587,8 +587,8 @@ export default function MeinBereichPage() {
 
             <div className="mt-6 grid grid-cols-1 lg:grid-cols-12">
               <div className="lg:col-span-12">
-                <div className="p-4 border border-amber-100 bg-amber-50/60 rounded-lg shadow-sm flex gap-3">
-                  <div className="relative w-20" style={{ aspectRatio: '3 / 4' }}>
+                <div className="p-4 border border-amber-100 bg-amber-50/60 rounded-lg shadow-sm flex gap-4">
+                  <div className="relative w-40" style={{ aspectRatio: '3 / 4' }}>
                     {photoPreview ? (
                       <img src={photoPreview} alt="Profilbild" className="h-full w-full rounded-md object-cover border border-amber-100" />
                     ) : (
