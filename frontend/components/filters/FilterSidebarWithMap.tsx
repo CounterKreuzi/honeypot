@@ -304,7 +304,7 @@ export default function FilterSidebar({
                 </div>
                 {!userLocation && (
                   <p className="text-xs text-amber-600 mt-2 p-2 bg-amber-50 rounded">
-                    ℹ️ Gibt einen Standort ein, um den Filter zu nutzen
+                    Standort eingeben, um den Filter zu nutzen
                   </p>
                 )}
               </div>

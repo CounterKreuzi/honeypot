@@ -381,15 +381,8 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="hidden lg:flex flex-1 min-w-0">
-                <LocationSearch
-                  onLocationChange={handleLocationChange}
-                  currentLocation={userLocation?.address}
-                />
-              </div>
-
               {/* Auth Buttons */}
-              <div className="hidden md:flex items-center gap-3">
+              <div className="hidden md:flex items-center gap-3 ml-auto">
                 {isLoggedIn ? (
                   <>
                     <Link href="/meinbereich" className="px-4 py-2 text-white hover:bg-white/10 rounded-lg transition-colors font-medium">
@@ -414,24 +407,6 @@ export default function Home() {
                 )}
               </div>
             </div>
-
-            <div className="flex items-center gap-3 w-full lg:hidden">
-              <div className="flex-1 min-w-0">
-                <LocationSearch
-                  onLocationChange={handleLocationChange}
-                  currentLocation={userLocation?.address}
-                />
-              </div>
-
-              {/* Mobile Filter Toggle */}
-              <button
-                onClick={() => setIsMobileFilterOpen(!isMobileFilterOpen)}
-                className="lg:hidden p-2 bg-white text-amber-600 rounded-lg shadow hover:bg-amber-50 transition-colors"
-                aria-label="Filter öffnen"
-              >
-                <SlidersHorizontal className="w-6 h-6" />
-              </button>
-            </div>
           </div>
         </div>
       </header>
@@ -455,6 +430,32 @@ export default function Home() {
 
           {/* Right Content Area - Beekeeper Cards */}
           <div className="flex-1 min-w-0">
+            <div className="mb-4">
+              <div className="bg-white rounded-xl shadow p-4 sm:p-5 border border-amber-100">
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-amber-600">Dein Standort</p>
+                    <p className="text-sm text-gray-900 font-semibold">Adresse eingeben und Imker in deiner Nähe finden.</p>
+                  </div>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-3 items-stretch">
+                  <div className="flex-1 min-w-0">
+                    <LocationSearch
+                      onLocationChange={handleLocationChange}
+                      currentLocation={userLocation?.address}
+                    />
+                  </div>
+                  <button
+                    onClick={() => setIsMobileFilterOpen(!isMobileFilterOpen)}
+                    className="lg:hidden inline-flex items-center justify-center gap-2 px-4 py-3 bg-amber-500 text-white font-semibold rounded-lg shadow hover:bg-amber-600 transition-colors"
+                    aria-label="Filter öffnen"
+                  >
+                    <SlidersHorizontal className="w-5 h-5" />
+                    <span>Filter</span>
+                  </button>
+                </div>
+              </div>
+            </div>
             {loading ? (
               <div className="flex items-center justify-center h-96 bg-white rounded-lg shadow">
                 <div className="text-center">
