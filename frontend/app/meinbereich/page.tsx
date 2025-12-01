@@ -532,8 +532,61 @@ export default function MeinBereichPage() {
               </div>
             </div>
 
-            <div className="mb-4">
-              <div className="w-full max-w-lg">
+            {!editing && (
+              <div className="space-y-3 text-sm">
+                <div><span className="text-gray-500">E-Mail: </span><span className="text-gray-900">{userEmail || '—'}</span></div>
+                <div><span className="text-gray-500">Firmenname: </span><span className="text-gray-900 font-medium">{name || '—'}</span></div>
+                <div><span className="text-gray-500">Beschreibung: </span><span className="text-gray-900">{description || '—'}</span></div>
+                <div><span className="text-gray-500">Adresse: </span><span className="text-gray-900">{address || '—'}</span></div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div><span className="text-gray-500">Stadt: </span><span className="text-gray-900">{city || '–'}</span></div>
+                  <div><span className="text-gray-500">PLZ: </span><span className="text-gray-900">{postalCode || '–'}</span></div>
+                  <div><span className="text-gray-500">Telefon: </span><span className="text-gray-900">{phone || '–'}</span></div>
+                </div>
+                <div><span className="text-gray-500">Website: </span><span className="text-gray-900">{website || '–'}</span></div>
+              </div>
+            )}
+
+            {editing && (
+              <form className="space-y-4" onSubmit={handleSaveProfile}>
+                <div>
+                  <label htmlFor="name" className="block text-sm font-medium text-gray-700">Firmenname</label>
+                  <input type="text" id="name" name="name" value={name} onChange={(e) => setName(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                </div>
+                <div>
+                  <label htmlFor="description" className="block text-sm font-medium text-gray-700">Beschreibung</label>
+                  <textarea id="description" name="description" value={description} onChange={(e) => setDescription(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" rows={4} />
+                </div>
+                <div>
+                  <label htmlFor="address" className="block text-sm font-medium text-gray-700">Adresse</label>
+                  <input type="text" id="address" name="address" autoComplete="street-address" value={address} onChange={(e) => setAddress(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label htmlFor="city" className="block text-sm font-medium text-gray-700">Stadt</label>
+                    <input type="text" id="city" name="city" autoComplete="address-level2" value={city} onChange={(e) => setCity(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                  </div>
+                  <div>
+                    <label htmlFor="postalCode" className="block text-sm font-medium text-gray-700">PLZ</label>
+                    <input type="text" id="postalCode" name="postalCode" autoComplete="postal-code" inputMode="numeric" value={postalCode} onChange={(e) => setPostalCode(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                  </div>
+                  <div>
+                    <label htmlFor="phone" className="block text-sm font-medium text-gray-700">Telefon</label>
+                    <input type="tel" id="phone" name="phone" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                  </div>
+                </div>
+                <div>
+                  <label htmlFor="website" className="block text-sm font-medium text-gray-700">Website</label>
+                  <input type="url" id="website" name="website" autoComplete="url" value={website} onChange={(e) => setWebsite(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                </div>
+                <div className="flex gap-3 justify-end">
+                  <button type="submit" disabled={saving} className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-md disabled:opacity-50">{saving ? 'Speichern …' : 'Speichern'}</button>
+                </div>
+              </form>
+            )}
+
+            <div className="mt-6 grid grid-cols-1 lg:grid-cols-12">
+              <div className="lg:col-span-12">
                 <div className="p-4 border border-amber-100 bg-amber-50/60 rounded-lg shadow-sm flex gap-3">
                   <div className="relative w-20" style={{ aspectRatio: '3 / 4' }}>
                     {photoPreview ? (
@@ -587,59 +640,6 @@ export default function MeinBereichPage() {
                 </div>
               </div>
             </div>
-
-            {!editing && (
-              <div className="space-y-3 text-sm">
-                <div><span className="text-gray-500">E-Mail: </span><span className="text-gray-900">{userEmail || '—'}</span></div>
-                <div><span className="text-gray-500">Firmenname: </span><span className="text-gray-900 font-medium">{name || '—'}</span></div>
-                <div><span className="text-gray-500">Beschreibung: </span><span className="text-gray-900">{description || '—'}</span></div>
-                <div><span className="text-gray-500">Adresse: </span><span className="text-gray-900">{address || '—'}</span></div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div><span className="text-gray-500">Stadt: </span><span className="text-gray-900">{city || '–'}</span></div>
-                  <div><span className="text-gray-500">PLZ: </span><span className="text-gray-900">{postalCode || '–'}</span></div>
-                  <div><span className="text-gray-500">Telefon: </span><span className="text-gray-900">{phone || '–'}</span></div>
-                </div>
-                <div><span className="text-gray-500">Website: </span><span className="text-gray-900">{website || '–'}</span></div>
-              </div>
-            )}
-
-            {editing && (
-              <form className="space-y-4" onSubmit={handleSaveProfile}>
-                <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700">Firmenname</label>
-                  <input type="text" id="name" name="name" value={name} onChange={(e) => setName(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
-                </div>
-                <div>
-                  <label htmlFor="description" className="block text-sm font-medium text-gray-700">Beschreibung</label>
-                  <textarea id="description" name="description" value={description} onChange={(e) => setDescription(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" rows={4} />
-                </div>
-                <div>
-                  <label htmlFor="address" className="block text-sm font-medium text-gray-700">Adresse</label>
-                  <input type="text" id="address" name="address" autoComplete="street-address" value={address} onChange={(e) => setAddress(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label htmlFor="city" className="block text-sm font-medium text-gray-700">Stadt</label>
-                    <input type="text" id="city" name="city" autoComplete="address-level2" value={city} onChange={(e) => setCity(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
-                  </div>
-                  <div>
-                    <label htmlFor="postalCode" className="block text-sm font-medium text-gray-700">PLZ</label>
-                    <input type="text" id="postalCode" name="postalCode" autoComplete="postal-code" inputMode="numeric" value={postalCode} onChange={(e) => setPostalCode(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
-                  </div>
-                  <div>
-                    <label htmlFor="phone" className="block text-sm font-medium text-gray-700">Telefon</label>
-                    <input type="tel" id="phone" name="phone" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
-                  </div>
-                </div>
-                <div>
-                  <label htmlFor="website" className="block text-sm font-medium text-gray-700">Website</label>
-                  <input type="url" id="website" name="website" autoComplete="url" value={website} onChange={(e) => setWebsite(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
-                </div>
-                <div className="flex gap-3 justify-end">
-                  <button type="submit" disabled={saving} className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-md disabled:opacity-50">{saving ? 'Speichern …' : 'Speichern'}</button>
-                </div>
-              </form>
-            )}
           </section>
 
           {/* Honig anlegen */}
