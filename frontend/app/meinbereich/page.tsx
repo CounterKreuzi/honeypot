@@ -160,8 +160,9 @@ export default function MeinBereichPage() {
     ctx.fillRect(0, 0, targetWidth, targetHeight);
 
     const fitScale = Math.min(frameSize.width / imageMeta.width, frameSize.height / imageMeta.height);
-    const displayWidth = imageMeta.width * fitScale * zoom;
-    const displayHeight = imageMeta.height * fitScale * zoom;
+    const currentScale = fitScale * zoom;
+    const displayWidth = imageMeta.width * currentScale;
+    const displayHeight = imageMeta.height * currentScale;
 
     const frameCenterX = frameSize.width / 2 + offset.x;
     const frameCenterY = frameSize.height / 2 + offset.y;
@@ -170,13 +171,19 @@ export default function MeinBereichPage() {
 
     const scaleFactor = targetWidth / frameSize.width;
 
-    ctx.drawImage(
-      image,
-      topLeftX * scaleFactor,
-      topLeftY * scaleFactor,
-      displayWidth * scaleFactor,
-      displayHeight * scaleFactor
-    );
+    // Calculate the portion of the original image that is visible inside the frame
+    const sourceX = Math.max(0, -topLeftX / currentScale);
+    const sourceY = Math.max(0, -topLeftY / currentScale);
+    const sourceWidth = Math.min(imageMeta.width - sourceX, frameSize.width / currentScale);
+    const sourceHeight = Math.min(imageMeta.height - sourceY, frameSize.height / currentScale);
+
+    // Mirror the on-screen positioning onto the export canvas
+    const destX = Math.max(0, topLeftX * scaleFactor);
+    const destY = Math.max(0, topLeftY * scaleFactor);
+    const destWidth = sourceWidth * currentScale * scaleFactor;
+    const destHeight = sourceHeight * currentScale * scaleFactor;
+
+    ctx.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, destX, destY, destWidth, destHeight);
 
     return compressCanvas(canvas);
   }, [compressCanvas, cropModal, frameSize.height, frameSize.width, imageMeta, offset.x, offset.y, zoom]);
