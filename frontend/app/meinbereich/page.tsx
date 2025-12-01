@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { beekeepersApi } from '@/lib/api/beekeepers';
 import type { Beekeeper, HoneyType } from '@/types/api';
@@ -25,6 +25,19 @@ export default function MeinBereichPage() {
   const [userEmail, setUserEmail] = useState<string>('');
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
+  const [photoPreview, setPhotoPreview] = useState('');
+  const [logoPreview, setLogoPreview] = useState('');
+  const [savingImages, setSavingImages] = useState(false);
+
+  // Image cropping
+  const [cropModal, setCropModal] = useState<{ type: 'photo' | 'logo'; src: string } | null>(null);
+  const [imageMeta, setImageMeta] = useState<{ width: number; height: number } | null>(null);
+  const [zoom, setZoom] = useState(1);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = useRef<{ x: number; y: number } | null>(null);
+  const [frameSize, setFrameSize] = useState({ width: 360, height: 480 });
+  const frameRef = useRef<HTMLDivElement | null>(null);
 
   // Modals (email/password)
   const [showEmailModal, setShowEmailModal] = useState(false);
@@ -74,6 +87,63 @@ export default function MeinBereichPage() {
   }
   const toCommaString = (n: number | null | undefined) => (n == null ? '' : String(n).replace('.', ','));
 
+  // Image helpers
+  const handleImageSelect = (file: File | null, type: 'photo' | 'logo') => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result === 'string') {
+        setCropModal({ type, src: result });
+        setZoom(1);
+        setOffset({ x: 0, y: 0 });
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const createCroppedImage = useCallback(async () => {
+    if (!cropModal || !imageMeta) return null;
+    const image = new Image();
+    image.src = cropModal.src;
+    await new Promise((resolve) => {
+      image.onload = resolve;
+      image.onerror = resolve;
+    });
+
+    const targetWidth = 900;
+    const targetHeight = 1200;
+    const canvas = document.createElement('canvas');
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx || !frameSize.width || !frameSize.height) return null;
+
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, targetWidth, targetHeight);
+
+    const fitScale = Math.min(frameSize.width / imageMeta.width, frameSize.height / imageMeta.height);
+    const displayWidth = imageMeta.width * fitScale * zoom;
+    const displayHeight = imageMeta.height * fitScale * zoom;
+
+    const frameCenterX = frameSize.width / 2 + offset.x;
+    const frameCenterY = frameSize.height / 2 + offset.y;
+    const topLeftX = frameCenterX - displayWidth / 2;
+    const topLeftY = frameCenterY - displayHeight / 2;
+
+    const scaleFactor = targetWidth / frameSize.width;
+
+    ctx.drawImage(
+      image,
+      topLeftX * scaleFactor,
+      topLeftY * scaleFactor,
+      displayWidth * scaleFactor,
+      displayHeight * scaleFactor
+    );
+
+    return canvas.toDataURL('image/jpeg', 0.92);
+  }, [cropModal, frameSize.height, frameSize.width, imageMeta, offset.x, offset.y, zoom]);
+
   const isAuthed = useMemo(() => {
     if (typeof window === 'undefined') return false;
     return Boolean(localStorage.getItem('token'));
@@ -96,6 +166,8 @@ export default function MeinBereichPage() {
         setPostalCode(me.postalCode || '');
         setPhone(me.phone || '');
         setWebsite(me.website || '');
+        setPhotoPreview(me.photo || '');
+        setLogoPreview(me.logo || '');
         setHoneyTypes(me.honeyTypes || []);
         // also fetch user email for display
         try {
@@ -121,6 +193,35 @@ export default function MeinBereichPage() {
     load();
   }, [isAuthed, router]);
 
+  useEffect(() => {
+    if (!cropModal?.src) {
+      setImageMeta(null);
+      setOffset({ x: 0, y: 0 });
+      setZoom(1);
+      return;
+    }
+    const img = new Image();
+    img.onload = () => {
+      setImageMeta({ width: img.naturalWidth, height: img.naturalHeight });
+    };
+    img.src = cropModal.src;
+  }, [cropModal]);
+
+  useEffect(() => {
+    if (!cropModal) return;
+    if (!frameRef.current) return;
+    const updateSize = () => {
+      const rect = frameRef.current?.getBoundingClientRect();
+      if (rect) {
+        setFrameSize({ width: rect.width, height: rect.height });
+      }
+    };
+    updateSize();
+    const observer = new ResizeObserver(updateSize);
+    observer.observe(frameRef.current);
+    return () => observer.disconnect();
+  }, [cropModal]);
+
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -133,6 +234,8 @@ export default function MeinBereichPage() {
         postalCode: postalCode || undefined,
         phone: phone || undefined,
         website: website || undefined,
+        photo: photoPreview || undefined,
+        logo: logoPreview || undefined,
       });
       setProfile(updated);
       setEditing(false);
@@ -141,6 +244,22 @@ export default function MeinBereichPage() {
       setError(getApiErrorMessage(err, 'Fehler beim Speichern'));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSaveImages = async () => {
+    try {
+      setSavingImages(true);
+      const updated = await beekeepersApi.updateProfile({
+        photo: photoPreview || null,
+        logo: logoPreview || null,
+      });
+      setProfile(updated);
+      setError(null);
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, 'Fehler beim Speichern der Bilder'));
+    } finally {
+      setSavingImages(false);
     }
   };
 
@@ -168,6 +287,44 @@ export default function MeinBereichPage() {
     } catch (err: unknown) {
       setError(getApiErrorMessage(err, 'Fehler beim Hinzufügen der Honigsorte'));
     }
+  };
+
+  const handleCropConfirm = async () => {
+    const result = await createCroppedImage();
+    if (result && cropModal) {
+      if (cropModal.type === 'photo') {
+        setPhotoPreview(result);
+      } else {
+        setLogoPreview(result);
+      }
+      setCropModal(null);
+    }
+  };
+
+  const handleClearImage = (type: 'photo' | 'logo') => {
+    if (type === 'photo') {
+      setPhotoPreview('');
+    } else {
+      setLogoPreview('');
+    }
+  };
+
+  const startDrag = (clientX: number, clientY: number) => {
+    setIsDragging(true);
+    dragStartRef.current = { x: clientX, y: clientY };
+  };
+
+  const moveDrag = (clientX: number, clientY: number) => {
+    if (!isDragging || !dragStartRef.current) return;
+    const deltaX = clientX - dragStartRef.current.x;
+    const deltaY = clientY - dragStartRef.current.y;
+    setOffset((prev) => ({ x: prev.x + deltaX, y: prev.y + deltaY }));
+    dragStartRef.current = { x: clientX, y: clientY };
+  };
+
+  const stopDrag = () => {
+    setIsDragging(false);
+    dragStartRef.current = null;
   };
 
   const toggleHoneyAvailability = async (h: HoneyType) => {
@@ -287,6 +444,39 @@ export default function MeinBereichPage() {
         {error && (
           <div className="mb-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded p-3">{error}</div>
         )}
+
+        <section className="bg-white rounded-lg shadow p-5 mb-6">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-3">
+            <div>
+              <h2 className="text-lg font-semibold">Profilbilder</h2>
+              <p className="text-sm text-gray-600">Lade ein Profilfoto und Logo hoch. Du kannst die Bilder auf ein 3:4-Format beschneiden und bei Bedarf Weißraum hinzufügen.</p>
+            </div>
+            <button
+              type="button"
+              onClick={handleSaveImages}
+              disabled={savingImages}
+              className="inline-flex items-center justify-center px-4 py-2 text-sm rounded-md bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-60"
+            >
+              {savingImages ? 'Speichern …' : 'Bilder speichern'}
+            </button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <ImageUploadCard
+              label="Profilfoto"
+              helper="Ideal für dein Hauptbild."
+              preview={photoPreview}
+              onFileSelect={(file) => handleImageSelect(file, 'photo')}
+              onClear={() => handleClearImage('photo')}
+            />
+            <ImageUploadCard
+              label="Logo"
+              helper="Quadratische Logos können mit Weißraum aufgehellt werden."
+              preview={logoPreview}
+              onFileSelect={(file) => handleImageSelect(file, 'logo')}
+              onClear={() => handleClearImage('logo')}
+            />
+          </div>
+        </section>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Stammdaten */}
@@ -425,6 +615,101 @@ export default function MeinBereichPage() {
         </section>
 
         {/* Modals */}
+        {cropModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="w-full max-w-5xl bg-white rounded-lg shadow-lg p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold">Bild zuschneiden (3:4)</h3>
+                  <p className="text-sm text-gray-600">Ziehe das Bild oder passe den Zoom an. Weißraum wird mit weißem Hintergrund gefüllt.</p>
+                </div>
+                <button onClick={() => setCropModal(null)} className="text-sm text-gray-600 hover:text-gray-900">Schließen</button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                <div
+                  ref={frameRef}
+                  className="relative w-full bg-gray-50 border border-gray-200 rounded-lg overflow-hidden"
+                  style={{ aspectRatio: '3 / 4', minHeight: '320px' }}
+                  onMouseDown={(e) => startDrag(e.clientX, e.clientY)}
+                  onMouseMove={(e) => moveDrag(e.clientX, e.clientY)}
+                  onMouseUp={stopDrag}
+                  onMouseLeave={stopDrag}
+                  onTouchStart={(e) => {
+                    if (e.touches[0]) startDrag(e.touches[0].clientX, e.touches[0].clientY);
+                  }}
+                  onTouchMove={(e) => {
+                    if (e.touches[0]) moveDrag(e.touches[0].clientX, e.touches[0].clientY);
+                  }}
+                  onTouchEnd={stopDrag}
+                  onTouchCancel={stopDrag}
+                >
+                  <div className="absolute inset-0 bg-white" />
+                  {imageMeta ? (
+                    <img
+                      src={cropModal.src}
+                      alt="Zu beschneidendes Bild"
+                      draggable={false}
+                      className="absolute top-1/2 left-1/2 select-none shadow-sm"
+                      style={{
+                        width: `${imageMeta.width * Math.min(frameSize.width / imageMeta.width, frameSize.height / imageMeta.height) * zoom}px`,
+                        height: `${imageMeta.height * Math.min(frameSize.width / imageMeta.width, frameSize.height / imageMeta.height) * zoom}px`,
+                        transform: `translate(-50%, -50%) translate(${offset.x}px, ${offset.y}px)`,
+                      }}
+                    />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-500">Bild wird geladen …</div>
+                  )}
+                  <div className="absolute inset-0 pointer-events-none border-2 border-amber-500" />
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Zoom</label>
+                    <input
+                      type="range"
+                      min={0.5}
+                      max={3}
+                      step={0.01}
+                      value={zoom}
+                      onChange={(e) => setZoom(Number(e.target.value))}
+                      className="w-full accent-amber-600"
+                    />
+                    <div className="flex items-center justify-between text-xs text-gray-500">
+                      <span>Mehr Weißraum</span>
+                      <span>Stärkerer Zuschnitt</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setZoom(1);
+                      setOffset({ x: 0, y: 0 });
+                    }}
+                    className="px-3 py-2 text-sm rounded-md border border-gray-200 hover:bg-gray-50"
+                  >
+                    Zurücksetzen
+                  </button>
+                  <p className="text-sm text-gray-600">
+                    Das Ergebnis wird auf 3:4 gebracht. Wenn du das Bild kleiner ziehst oder verschiebst, entsteht automatisch weißer Hintergrund – ideal für quadratische Logos ohne Beschnitt.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center justify-end gap-3 mt-6">
+                <button
+                  className="px-4 py-2 text-sm rounded-md border border-gray-200 hover:bg-gray-50"
+                  onClick={() => setCropModal(null)}
+                >
+                  Abbrechen
+                </button>
+                <button
+                  className="px-4 py-2 text-sm rounded-md bg-amber-600 text-white hover:bg-amber-700"
+                  onClick={handleCropConfirm}
+                >
+                  Zuschnitt übernehmen
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         <Modal open={showEmailModal} title="E-Mail-Adresse ändern" onClose={() => setShowEmailModal(false)}>
           {emailFlowStep === 'request' ? (
             <form className="space-y-3" onSubmit={handleEmailRequest}>
@@ -530,6 +815,66 @@ export default function MeinBereichPage() {
         </Modal>
       </div>
     </main>
+  );
+}
+
+function ImageUploadCard({
+  label,
+  helper,
+  preview,
+  onFileSelect,
+  onClear,
+}: {
+  label: string;
+  helper: string;
+  preview: string;
+  onFileSelect: (file: File | null) => void;
+  onClear: () => void;
+}) {
+  const inputId = `${label}-upload`;
+  return (
+    <div className="border border-gray-200 rounded-lg p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="font-medium text-gray-900">{label}</p>
+          <p className="text-sm text-gray-600">{helper}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <label
+            htmlFor={inputId}
+            className="px-3 py-1.5 text-sm rounded-md bg-amber-50 text-amber-800 border border-amber-200 cursor-pointer hover:bg-amber-100"
+          >
+            Bild wählen
+          </label>
+          {preview && (
+            <button
+              type="button"
+              onClick={onClear}
+              className="px-3 py-1.5 text-sm rounded-md border border-gray-200 hover:bg-gray-50"
+            >
+              Entfernen
+            </button>
+          )}
+          <input
+            id={inputId}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => onFileSelect(e.target.files?.[0] || null)}
+          />
+        </div>
+      </div>
+      <div className="relative w-full" style={{ aspectRatio: '3 / 4' }}>
+        <div className="absolute inset-0 rounded-md border border-dashed border-gray-300 bg-gray-50 overflow-hidden flex items-center justify-center">
+          {preview ? (
+            <img src={preview} alt={`${label} Vorschau`} className="h-full w-full object-contain" />
+          ) : (
+            <span className="text-sm text-gray-400">Noch kein Bild hochgeladen</span>
+          )}
+        </div>
+      </div>
+      <p className="text-xs text-gray-500">Endformat 3:4. Für Logos kannst du Weißraum hinzufügen, damit nichts abgeschnitten wird.</p>
+    </div>
   );
 }
 
