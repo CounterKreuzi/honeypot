@@ -530,7 +530,10 @@ export default function MeinBereichPage() {
                   </div>
                 </div>
               </div>
-              <div className="w-full lg:w-64">
+            </div>
+
+            <div className="mb-4">
+              <div className="w-full max-w-lg">
                 <div className="p-4 border border-amber-100 bg-amber-50/60 rounded-lg shadow-sm flex gap-3">
                   <div className="relative w-20" style={{ aspectRatio: '3 / 4' }}>
                     {photoPreview ? (
