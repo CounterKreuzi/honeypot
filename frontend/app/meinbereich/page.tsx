@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -26,11 +27,10 @@ export default function MeinBereichPage() {
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [photoPreview, setPhotoPreview] = useState('');
-  const [logoPreview, setLogoPreview] = useState('');
-  const [savingImages, setSavingImages] = useState(false);
+  const [savingPhoto, setSavingPhoto] = useState(false);
 
   // Image cropping
-  const [cropModal, setCropModal] = useState<{ type: 'photo' | 'logo'; src: string } | null>(null);
+  const [cropModal, setCropModal] = useState<{ src: string } | null>(null);
   const [imageMeta, setImageMeta] = useState<{ width: number; height: number } | null>(null);
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
@@ -88,13 +88,13 @@ export default function MeinBereichPage() {
   const toCommaString = (n: number | null | undefined) => (n == null ? '' : String(n).replace('.', ','));
 
   // Image helpers
-  const handleImageSelect = (file: File | null, type: 'photo' | 'logo') => {
+  const handleImageSelect = (file: File | null) => {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
       const result = reader.result;
       if (typeof result === 'string') {
-        setCropModal({ type, src: result });
+        setCropModal({ src: result });
         setZoom(1);
         setOffset({ x: 0, y: 0 });
       }
@@ -211,7 +211,6 @@ export default function MeinBereichPage() {
         setPhone(me.phone || '');
         setWebsite(me.website || '');
         setPhotoPreview(me.photo || '');
-        setLogoPreview(me.logo || '');
         setHoneyTypes(me.honeyTypes || []);
         // also fetch user email for display
         try {
@@ -279,7 +278,6 @@ export default function MeinBereichPage() {
         phone: phone || undefined,
         website: website || undefined,
         photo: photoPreview || undefined,
-        logo: logoPreview || undefined,
       });
       setProfile(updated);
       setEditing(false);
@@ -288,22 +286,6 @@ export default function MeinBereichPage() {
       setError(getApiErrorMessage(err, 'Fehler beim Speichern'));
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleSaveImages = async () => {
-    try {
-      setSavingImages(true);
-      const updated = await beekeepersApi.updateProfile({
-        photo: photoPreview || null,
-        logo: logoPreview || null,
-      });
-      setProfile(updated);
-      setError(null);
-    } catch (err: unknown) {
-      setError(getApiErrorMessage(err, 'Fehler beim Speichern der Bilder'));
-    } finally {
-      setSavingImages(false);
     }
   };
 
@@ -333,23 +315,68 @@ export default function MeinBereichPage() {
     }
   };
 
+  const toDataUrl = async (src: string) => {
+    if (src.startsWith('data:')) return src;
+    const response = await fetch(src);
+    if (!response.ok) {
+      throw new Error('Konnte Bild nicht laden');
+    }
+    const blob = await response.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          resolve(reader.result);
+        } else {
+          reject(new Error('Konnte Bild nicht laden'));
+        }
+      };
+      reader.onerror = () => reject(new Error('Konnte Bild nicht laden'));
+      reader.readAsDataURL(blob);
+    });
+  };
+
   const handleCropConfirm = async () => {
-    const result = await createCroppedImage();
-    if (result && cropModal) {
-      if (cropModal.type === 'photo') {
+    try {
+      setSavingPhoto(true);
+      const result = await createCroppedImage();
+      if (result) {
+        const updated = await beekeepersApi.updateProfile({ photo: result });
         setPhotoPreview(result);
-      } else {
-        setLogoPreview(result);
+        setProfile(updated);
+        setError(null);
+        setCropModal(null);
       }
-      setCropModal(null);
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, 'Fehler beim Speichern des Profilbilds'));
+    } finally {
+      setSavingPhoto(false);
     }
   };
 
-  const handleClearImage = (type: 'photo' | 'logo') => {
-    if (type === 'photo') {
+  const handleClearPhoto = async () => {
+    try {
+      setSavingPhoto(true);
+      const updated = await beekeepersApi.updateProfile({ photo: null });
       setPhotoPreview('');
-    } else {
-      setLogoPreview('');
+      setProfile(updated);
+      setError(null);
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, 'Fehler beim Entfernen des Profilbilds'));
+    } finally {
+      setSavingPhoto(false);
+    }
+  };
+
+  const reopenCropperWithExistingPhoto = async () => {
+    if (!photoPreview) return;
+    try {
+      const src = await toDataUrl(photoPreview);
+      setCropModal({ src });
+      setZoom(1);
+      setOffset({ x: 0, y: 0 });
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, 'Aktuelles Profilbild konnte nicht bearbeitet werden'));
     }
   };
 
@@ -489,48 +516,72 @@ export default function MeinBereichPage() {
           <div className="mb-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded p-3">{error}</div>
         )}
 
-        <section className="bg-white rounded-lg shadow p-5 mb-6">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-3">
-            <div>
-              <h2 className="text-lg font-semibold">Profilbilder</h2>
-              <p className="text-sm text-gray-600">Lade ein Profilfoto und Logo hoch. Du kannst die Bilder auf ein 3:4-Format beschneiden und bei Bedarf Weißraum hinzufügen.</p>
-            </div>
-            <button
-              type="button"
-              onClick={handleSaveImages}
-              disabled={savingImages}
-              className="inline-flex items-center justify-center px-4 py-2 text-sm rounded-md bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-60"
-            >
-              {savingImages ? 'Speichern …' : 'Bilder speichern'}
-            </button>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <ImageUploadCard
-              label="Profilfoto"
-              helper="Ideal für dein Hauptbild."
-              preview={photoPreview}
-              onFileSelect={(file) => handleImageSelect(file, 'photo')}
-              onClear={() => handleClearImage('photo')}
-            />
-            <ImageUploadCard
-              label="Logo"
-              helper="Quadratische Logos können mit Weißraum aufgehellt werden."
-              preview={logoPreview}
-              onFileSelect={(file) => handleImageSelect(file, 'logo')}
-              onClear={() => handleClearImage('logo')}
-            />
-          </div>
-        </section>
-
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Stammdaten */}
           <section className="lg:col-span-2 bg-white rounded-lg shadow p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">Stammdaten</h2>
-              <div className="flex items-center gap-2">
-                <button type="button" onClick={() => { setShowEmailModal(true); setEmailFlowStep('request'); setEmailNew(''); setEmailCode(''); }} className="px-3 py-1.5 text-sm border border-gray-200 rounded-md hover:bg-gray-50">E-Mail-Adresse ändern</button>
-                <button type="button" onClick={() => setShowPasswordModal(true)} className="px-3 py-1.5 text-sm border border-gray-200 rounded-md hover:bg-gray-50">Passwort ändern</button>
-                <button type="button" onClick={() => setEditing((v) => !v)} className="px-3 py-1.5 text-sm bg-amber-600 text-white rounded-md hover:bg-amber-700">{editing ? 'Abbrechen' : 'Stammdaten bearbeiten'}</button>
+            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-4">
+              <div className="flex-1">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold">Stammdaten</h2>
+                  <div className="flex items-center gap-2">
+                    <button type="button" onClick={() => { setShowEmailModal(true); setEmailFlowStep('request'); setEmailNew(''); setEmailCode(''); }} className="px-3 py-1.5 text-sm border border-gray-200 rounded-md hover:bg-gray-50">E-Mail-Adresse ändern</button>
+                    <button type="button" onClick={() => setShowPasswordModal(true)} className="px-3 py-1.5 text-sm border border-gray-200 rounded-md hover:bg-gray-50">Passwort ändern</button>
+                    <button type="button" onClick={() => setEditing((v) => !v)} className="px-3 py-1.5 text-sm bg-amber-600 text-white rounded-md hover:bg-amber-700">{editing ? 'Abbrechen' : 'Stammdaten bearbeiten'}</button>
+                  </div>
+                </div>
+              </div>
+              <div className="w-full lg:w-64">
+                <div className="p-4 border border-amber-100 bg-amber-50/60 rounded-lg shadow-sm flex gap-3">
+                  <div className="relative w-20" style={{ aspectRatio: '3 / 4' }}>
+                    {photoPreview ? (
+                      <img src={photoPreview} alt="Profilbild" className="h-full w-full rounded-md object-cover border border-amber-100" />
+                    ) : (
+                      <div className="h-full w-full rounded-md border border-dashed border-amber-200 bg-white/80 text-xs text-gray-500 flex items-center justify-center text-center px-2">
+                        Kein Profilbild
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-2 text-sm">
+                    <div className="font-semibold text-gray-900 leading-5">Profilbild</div>
+                    <p className="text-xs text-gray-600">Kleines Format direkt in den Stammdaten bearbeiten.</p>
+                    <div className="flex flex-wrap gap-2">
+                      <label
+                        htmlFor="profile-photo-upload"
+                        className="px-3 py-1.5 text-xs rounded-md bg-white text-amber-800 border border-amber-200 cursor-pointer hover:bg-amber-100 disabled:opacity-60"
+                      >
+                        Bild wählen
+                      </label>
+                      {photoPreview && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={reopenCropperWithExistingPhoto}
+                            disabled={savingPhoto}
+                            className="px-3 py-1.5 text-xs rounded-md border border-gray-200 hover:bg-gray-50 disabled:opacity-60"
+                          >
+                            Anpassen
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleClearPhoto}
+                            disabled={savingPhoto}
+                            className="px-3 py-1.5 text-xs rounded-md border border-gray-200 hover:bg-gray-50 text-gray-700 disabled:opacity-60"
+                          >
+                            Entfernen
+                          </button>
+                        </>
+                      )}
+                    </div>
+                    <input
+                      id="profile-photo-upload"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => handleImageSelect(e.target.files?.[0] || null)}
+                      disabled={savingPhoto}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -734,7 +785,7 @@ export default function MeinBereichPage() {
                     Zurücksetzen
                   </button>
                   <p className="text-sm text-gray-600">
-                    Das Ergebnis wird auf 3:4 gebracht. Wenn du das Bild kleiner ziehst oder verschiebst, entsteht automatisch weißer Hintergrund – ideal für quadratische Logos ohne Beschnitt.
+                    Das Ergebnis wird auf 3:4 gebracht. Wenn du das Bild kleiner ziehst oder verschiebst, entsteht automatisch weißer Hintergrund – praktisch, wenn du mehr Freiraum um dein Profilbild möchtest.
                   </p>
                 </div>
               </div>
@@ -746,10 +797,11 @@ export default function MeinBereichPage() {
                   Abbrechen
                 </button>
                 <button
-                  className="px-4 py-2 text-sm rounded-md bg-amber-600 text-white hover:bg-amber-700"
+                  className="px-4 py-2 text-sm rounded-md bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-60"
                   onClick={handleCropConfirm}
+                  disabled={savingPhoto}
                 >
-                  Zuschnitt übernehmen
+                  Übernehmen &amp; Speichern
                 </button>
               </div>
             </div>
@@ -860,99 +912,6 @@ export default function MeinBereichPage() {
         </Modal>
       </div>
     </main>
-  );
-}
-
-function ImageUploadCard({
-  label,
-  helper,
-  preview,
-  onFileSelect,
-  onClear,
-}: {
-  label: string;
-  helper: string;
-  preview: string;
-  onFileSelect: (file: File | null) => void;
-  onClear: () => void;
-}) {
-  const inputId = `${label}-upload`;
-  const [isDragOver, setIsDragOver] = useState(false);
-
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragOver(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragOver(false);
-  };
-
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragOver(false);
-    const file = e.dataTransfer.files?.[0] || null;
-    if (file) {
-      onFileSelect(file);
-    }
-  };
-  return (
-    <div className="border border-gray-200 rounded-lg p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="font-medium text-gray-900">{label}</p>
-          <p className="text-sm text-gray-600">{helper}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <label
-            htmlFor={inputId}
-            className="px-3 py-1.5 text-sm rounded-md bg-amber-50 text-amber-800 border border-amber-200 cursor-pointer hover:bg-amber-100"
-          >
-            Bild wählen
-          </label>
-          {preview && (
-            <button
-              type="button"
-              onClick={onClear}
-              className="px-3 py-1.5 text-sm rounded-md border border-gray-200 hover:bg-gray-50"
-            >
-              Entfernen
-            </button>
-          )}
-          <input
-            id={inputId}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => onFileSelect(e.target.files?.[0] || null)}
-          />
-        </div>
-      </div>
-      <div
-        className={`relative w-full ${isDragOver ? 'ring-2 ring-amber-400 ring-offset-2' : ''}`}
-        style={{ aspectRatio: '3 / 4' }}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-      >
-        <div className="absolute inset-0 rounded-md border border-dashed border-gray-300 bg-gray-50 overflow-hidden flex flex-col items-center justify-center text-center px-4">
-          {preview ? (
-            <img src={preview} alt={`${label} Vorschau`} className="h-full w-full object-contain" />
-          ) : (
-            <span className="text-sm text-gray-500">
-              Datei hierher ziehen oder <label htmlFor={inputId} className="underline cursor-pointer text-amber-700">Bild wählen</label>
-            </span>
-          )}
-          {isDragOver && (
-            <div className="absolute inset-0 bg-amber-50/70 border-2 border-amber-300 rounded-md pointer-events-none flex items-center justify-center text-amber-800 font-medium">
-              Loslassen zum Hochladen
-            </div>
-          )}
-        </div>
-      </div>
-      <p className="text-xs text-gray-500">Endformat 3:4. Für Logos kannst du Weißraum hinzufügen, damit nichts abgeschnitten wird.</p>
-    </div>
   );
 }
 
