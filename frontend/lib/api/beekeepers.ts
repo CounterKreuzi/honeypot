@@ -86,7 +86,12 @@ export const beekeepersApi = {
   },
 
   updateProfile: async (
-    payload: Partial<Pick<Beekeeper, 'name' | 'description' | 'address' | 'city' | 'postalCode' | 'country' | 'phone' | 'website' | 'openingHours'>>
+    payload: Partial<
+      Pick<
+        Beekeeper,
+        'name' | 'description' | 'address' | 'city' | 'postalCode' | 'country' | 'phone' | 'website' | 'openingHours'
+      >
+    > & { photo?: string | null; logo?: string | null }
   ): Promise<Beekeeper> => {
     const response = await apiClient.put<{ success: boolean; data: Beekeeper }>(
       '/api/beekeepers/profile',

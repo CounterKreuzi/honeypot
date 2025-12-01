@@ -3,6 +3,8 @@ import Joi from 'joi';
 export const updateProfileSchema = Joi.object({
   name: Joi.string().min(2).max(100),
   description: Joi.string().max(1000).allow('', null),
+  logo: Joi.string().allow('', null),
+  photo: Joi.string().allow('', null),
   address: Joi.string().min(5).max(200),
   city: Joi.string().max(100).allow('', null),
   postalCode: Joi.string().max(20).allow('', null),
