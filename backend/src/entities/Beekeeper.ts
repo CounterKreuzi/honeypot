@@ -39,11 +39,11 @@ export class Beekeeper {
   @Column({ type: 'text', nullable: true })
   description?: string;
 
-  @Column({ nullable: true })
-  logo?: string; // Cloudinary URL
+  @Column({ type: 'text', nullable: true })
+  logo?: string; // Cloudinary URL or base64 data URL
 
-  @Column({ nullable: true })
-  photo?: string; // Cloudinary URL
+  @Column({ type: 'text', nullable: true })
+  photo?: string; // Cloudinary URL or base64 data URL
 
   // Standort
   @Column({ type: 'decimal', precision: 10, scale: 7 })
