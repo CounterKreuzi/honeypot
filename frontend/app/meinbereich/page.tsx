@@ -695,9 +695,10 @@ export default function MeinBereichPage() {
                       draggable={false}
                       className="absolute top-1/2 left-1/2 select-none shadow-sm"
                       style={{
-                        width: `${imageMeta.width * Math.min(frameSize.width / imageMeta.width, frameSize.height / imageMeta.height) * zoom}px`,
-                        height: `${imageMeta.height * Math.min(frameSize.width / imageMeta.width, frameSize.height / imageMeta.height) * zoom}px`,
-                        transform: `translate(-50%, -50%) translate(${offset.x}px, ${offset.y}px)`,
+                        width: `${imageMeta.width * Math.min(frameSize.width / imageMeta.width, frameSize.height / imageMeta.height)}px`,
+                        height: `${imageMeta.height * Math.min(frameSize.width / imageMeta.width, frameSize.height / imageMeta.height)}px`,
+                        transform: `translate(-50%, -50%) translate(${offset.x}px, ${offset.y}px) scale(${zoom})`,
+                        transformOrigin: 'center',
                       }}
                     />
                   ) : (
