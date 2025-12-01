@@ -102,6 +102,43 @@ export default function MeinBereichPage() {
     reader.readAsDataURL(file);
   };
 
+  const MAX_IMAGE_BYTES = 700_000;
+
+  const getDataUrlSize = (dataUrl: string) => Math.round((dataUrl.length * 3) / 4);
+
+  const compressCanvas = useCallback((baseCanvas: HTMLCanvasElement, initialQuality = 0.92) => {
+    let quality = initialQuality;
+    let workingCanvas = baseCanvas;
+    const shrinkCanvas = () => {
+      const nextCanvas = document.createElement('canvas');
+      nextCanvas.width = Math.round(workingCanvas.width * 0.9);
+      nextCanvas.height = Math.round(workingCanvas.height * 0.9);
+      const ctx = nextCanvas.getContext('2d');
+      if (!ctx) return workingCanvas;
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, nextCanvas.width, nextCanvas.height);
+      ctx.drawImage(workingCanvas, 0, 0, nextCanvas.width, nextCanvas.height);
+      return nextCanvas;
+    };
+
+    let dataUrl = workingCanvas.toDataURL('image/jpeg', quality);
+    let size = getDataUrlSize(dataUrl);
+
+    while (size > MAX_IMAGE_BYTES && quality > 0.5) {
+      quality = Math.max(0.5, quality - 0.1);
+      dataUrl = workingCanvas.toDataURL('image/jpeg', quality);
+      size = getDataUrlSize(dataUrl);
+    }
+
+    while (size > MAX_IMAGE_BYTES && workingCanvas.width > 600) {
+      workingCanvas = shrinkCanvas();
+      dataUrl = workingCanvas.toDataURL('image/jpeg', quality);
+      size = getDataUrlSize(dataUrl);
+    }
+
+    return dataUrl;
+  }, []);
+
   const createCroppedImage = useCallback(async () => {
     if (!cropModal || !imageMeta) return null;
     const image = new Image();
@@ -141,8 +178,8 @@ export default function MeinBereichPage() {
       displayHeight * scaleFactor
     );
 
-    return canvas.toDataURL('image/jpeg', 0.92);
-  }, [cropModal, frameSize.height, frameSize.width, imageMeta, offset.x, offset.y, zoom]);
+    return compressCanvas(canvas);
+  }, [compressCanvas, cropModal, frameSize.height, frameSize.width, imageMeta, offset.x, offset.y, zoom]);
 
   const isAuthed = useMemo(() => {
     if (typeof window === 'undefined') return false;
@@ -832,6 +869,26 @@ function ImageUploadCard({
   onClear: () => void;
 }) {
   const inputId = `${label}-upload`;
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const file = e.dataTransfer.files?.[0] || null;
+    if (file) {
+      onFileSelect(file);
+    }
+  };
   return (
     <div className="border border-gray-200 rounded-lg p-4 space-y-3">
       <div className="flex items-center justify-between">
@@ -864,12 +921,25 @@ function ImageUploadCard({
           />
         </div>
       </div>
-      <div className="relative w-full" style={{ aspectRatio: '3 / 4' }}>
-        <div className="absolute inset-0 rounded-md border border-dashed border-gray-300 bg-gray-50 overflow-hidden flex items-center justify-center">
+      <div
+        className={`relative w-full ${isDragOver ? 'ring-2 ring-amber-400 ring-offset-2' : ''}`}
+        style={{ aspectRatio: '3 / 4' }}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        <div className="absolute inset-0 rounded-md border border-dashed border-gray-300 bg-gray-50 overflow-hidden flex flex-col items-center justify-center text-center px-4">
           {preview ? (
             <img src={preview} alt={`${label} Vorschau`} className="h-full w-full object-contain" />
           ) : (
-            <span className="text-sm text-gray-400">Noch kein Bild hochgeladen</span>
+            <span className="text-sm text-gray-500">
+              Datei hierher ziehen oder <label htmlFor={inputId} className="underline cursor-pointer text-amber-700">Bild wählen</label>
+            </span>
+          )}
+          {isDragOver && (
+            <div className="absolute inset-0 bg-amber-50/70 border-2 border-amber-300 rounded-md pointer-events-none flex items-center justify-center text-amber-800 font-medium">
+              Loslassen zum Hochladen
+            </div>
           )}
         </div>
       </div>
