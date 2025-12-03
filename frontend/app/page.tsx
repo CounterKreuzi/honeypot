@@ -9,9 +9,8 @@ import BeekeeperCard from '@/components/cards/BeekeeperCard';
 import LocationSearch from '@/components/location/LocationSearch';
 import MapModal from '@/components/modals/MapModal';
 import BeekeeperDetailModal from '@/components/modals/BeekeeperDetailModal';
-import { BadgeCheck, Droplets, Filter, Loader2, MapPin, Package, Ruler, SlidersHorizontal } from 'lucide-react';
+import { BadgeCheck, Droplets, Loader2, MapPin, Package, Ruler } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 
 type JarSize = 250 | 500 | 1000;
 
@@ -79,7 +78,6 @@ const getAvailablePrices = (honeyTypes: Beekeeper['honeyTypes']) =>
   );
 
 export default function Home() {
-  const router = useRouter();
   const {
     beekeepers,
     setBeekeepers,
@@ -95,7 +93,7 @@ export default function Home() {
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const [sortBy, setSortBy] = useState<'distance' | 'name' | 'price'>('distance');
+  const [sortBy] = useState<'distance' | 'name' | 'price'>('distance');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [openFilter, setOpenFilter] = useState<string | null>(null);
 
@@ -112,14 +110,6 @@ export default function Home() {
       setIsLoggedIn(Boolean(token));
     }
   }, []);
-
-  const handleLogout = () => {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('token');
-      setIsLoggedIn(false);
-      router.push('/');
-    }
-  };
 
   const loadBeekeepers = async () => {
     try {
@@ -389,313 +379,236 @@ export default function Home() {
     setFilters((prev) => ({ ...prev, priceRange: [prev.priceRange[0], value] }));
   };
 
-  return (
-    <main className="min-h-screen bg-gradient-to-br from-amber-50 via-white to-amber-50">
-      {/* Header */}
-      <header className="bg-gradient-to-r from-amber-500 to-amber-600 shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col lg:flex-row items-start lg:items-center gap-4 lg:gap-6">
-              {/* Logo & Title */}
-              <div className="flex items-center gap-3 flex-shrink-0">
-                <span className="text-5xl drop-shadow-lg">🍯</span>
-                <div>
-                  <h1 className="text-2xl sm:text-3xl font-bold text-white drop-shadow">
-                    Honeypot
-                  </h1>
-                  <p className="text-xs sm:text-sm text-amber-100">
-                    Finde lokale Imker in deiner Nähe
-                  </p>
-                </div>
-              </div>
 
-              {/* Auth Buttons */}
-              <div className="hidden md:flex items-center gap-3 ml-auto">
-                {isLoggedIn ? (
-                  <>
-                    <Link href="/meinbereich" className="px-4 py-2 text-white hover:bg-white/10 rounded-lg transition-colors font-medium">
-                      Mein Bereich
-                    </Link>
-                    <button
-                      onClick={handleLogout}
-                      className="px-4 py-2 bg-white text-amber-600 hover:bg-amber-50 rounded-lg transition-colors font-semibold"
-                    >
-                      Ausloggen
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <Link href="/imker-werden" className="px-4 py-2 text-white hover:bg-white/10 rounded-lg transition-colors font-medium">
-                      Imker werden
-                    </Link>
-                    <Link href="/login" className="px-4 py-2 bg-white text-amber-600 hover:bg-amber-50 rounded-lg transition-colors font-semibold">
-                      Anmelden
-                    </Link>
-                  </>
-                )}
-              </div>
+  return (
+    <main className="min-h-screen bg-zinc-50">
+      <header className="bg-white border-b shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-3">
+            <span className="text-4xl">🍯</span>
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-amber-600 font-semibold">Honeypot</p>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Lokaler Honig in deiner Nähe</h1>
             </div>
+          </div>
+
+          <div className="flex-1 min-w-[260px] flex items-center gap-3 justify-end">
+            <div className="flex-1 max-w-xl">
+              <LocationSearch
+                onLocationChange={handleLocationChange}
+                currentLocation={userLocation?.address}
+              />
+            </div>
+            <Link
+              href="/imker-werden"
+              className="hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-full border border-amber-200 bg-amber-50 text-amber-700 font-semibold hover:border-amber-300"
+            >
+              Imker werden
+            </Link>
+            {isLoggedIn ? (
+              <Link
+                href="/meinbereich"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-500 text-white font-semibold shadow hover:bg-amber-600"
+              >
+                Profil bearbeiten
+              </Link>
+            ) : (
+              <Link
+                href="/login"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-500 text-white font-semibold shadow hover:bg-amber-600"
+              >
+                Anmelden
+              </Link>
+            )}
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
+      <section className="bg-white border-b shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center gap-3">
+          <span className="text-sm font-semibold text-gray-700">Filter:</span>
+
+          <div className="relative">
+            <button
+              onClick={() => toggleFilterDropdown('distance')}
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-semibold transition-colors ${
+                openFilter === 'distance'
+                  ? 'bg-amber-500 text-white border-amber-500 shadow'
+                  : 'bg-white text-gray-700 border-amber-200 hover:border-amber-300'
+              }`}
+              disabled={isDistanceDisabled}
+            >
+              <MapPin className="w-4 h-4" />
+              {isDistanceDisabled ? 'Entfernung (Adresse nötig)' : `${filters.maxDistance} km`}
+            </button>
+            {openFilter === 'distance' && !isDistanceDisabled && (
+              <div className="absolute z-20 mt-2 w-72 bg-white border border-amber-100 rounded-2xl shadow-xl p-3 space-y-3">
+                <div className="flex items-center justify-between text-sm font-semibold text-gray-700">
+                  <span>Suchradius</span>
+                  <span className="text-amber-600">{filters.maxDistance} km</span>
+                </div>
+                <input
+                  type="range"
+                  min="5"
+                  max="200"
+                  step="5"
+                  value={filters.maxDistance}
+                  onChange={(e) => handleDistanceChange(Number(e.target.value))}
+                  className="w-full accent-amber-500"
+                />
+                <div className="flex justify-between text-xs text-gray-500">
+                  <span>5 km</span>
+                  <span>200 km</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="relative">
+            <button
+              onClick={() => toggleFilterDropdown('price')}
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-semibold transition-colors ${
+                openFilter === 'price'
+                  ? 'bg-amber-500 text-white border-amber-500 shadow'
+                  : 'bg-white text-gray-700 border-amber-200 hover:border-amber-300'
+              }`}
+            >
+              <BadgeCheck className="w-4 h-4" />
+              Preis bis {filters.priceRange[1]}€
+            </button>
+            {openFilter === 'price' && (
+              <div className="absolute z-20 mt-2 w-72 bg-white border border-amber-100 rounded-2xl shadow-xl p-3 space-y-3">
+                <div className="flex items-center justify-between text-sm font-semibold text-gray-700">
+                  <span>Maximaler Preis</span>
+                  <span className="text-amber-600">{filters.priceRange[1]}€</span>
+                </div>
+                <input
+                  type="range"
+                  min="5"
+                  max="50"
+                  step="1"
+                  value={filters.priceRange[1]}
+                  onChange={(e) => handleMaxPriceChange(Number(e.target.value))}
+                  className="w-full accent-amber-500"
+                />
+                <div className="flex justify-between text-xs text-gray-500">
+                  <span>5€</span>
+                  <span>50€</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="relative">
+            <button
+              onClick={() => toggleFilterDropdown('jar')}
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-semibold transition-colors ${
+                openFilter === 'jar'
+                  ? 'bg-amber-500 text-white border-amber-500 shadow'
+                  : 'bg-white text-gray-700 border-amber-200 hover:border-amber-300'
+              }`}
+            >
+              <Package className="w-4 h-4" />
+              Gebindegröße
+            </button>
+            {openFilter === 'jar' && (
+              <div className="absolute z-20 mt-2 w-64 bg-white border border-amber-100 rounded-2xl shadow-xl p-3 space-y-2">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Glasgrößen</p>
+                <div className="flex flex-wrap gap-2">
+                  {[250, 500, 1000].map((size) => (
+                    <button
+                      key={size}
+                      onClick={() => toggleJarSize(size as JarSize)}
+                      className={`text-sm px-3 py-1.5 rounded-full border transition-colors ${
+                        filters.jarSizes.includes(size as JarSize)
+                          ? 'bg-amber-100 border-amber-300 text-amber-800'
+                          : 'border-gray-200 text-gray-700 hover:border-amber-200'
+                      }`}
+                    >
+                      {size} g
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="relative">
+            <button
+              onClick={() => toggleFilterDropdown('honey')}
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-semibold transition-colors ${
+                openFilter === 'honey'
+                  ? 'bg-amber-500 text-white border-amber-500 shadow'
+                  : 'bg-white text-gray-700 border-amber-200 hover:border-amber-300'
+              }`}
+            >
+              <Droplets className="w-4 h-4" /> Honigsorten
+            </button>
+            {openFilter === 'honey' && (
+              <div className="absolute z-20 mt-2 w-72 bg-white border border-amber-100 rounded-2xl shadow-xl p-3 space-y-2">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Sorten</p>
+                <div className="flex flex-wrap gap-2">
+                  {availableHoneyTypes.map((type) => (
+                    <button
+                      key={type}
+                      onClick={() => toggleHoneyType(type)}
+                      className={`text-sm px-3 py-1.5 rounded-full border transition-colors ${
+                        filters.honeyTypes.includes(type)
+                          ? 'bg-amber-100 border-amber-300 text-amber-800'
+                          : 'border-gray-200 text-gray-700 hover:border-amber-200'
+                      }`}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={resetFilters}
+            className="ml-auto inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-amber-700 hover:text-amber-800"
+          >
+            Filter zurücksetzen
+          </button>
+        </div>
+      </section>
+
       <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-        <div className="grid lg:grid-cols-[1.05fr_1fr] gap-6 items-start">
-          <section className="space-y-4">
-            <div className="bg-white rounded-3xl shadow-lg border border-amber-100 p-5 sm:p-6 space-y-4">
+        <div className="grid lg:grid-cols-[1.05fr_1fr] gap-5 items-start">
+          <section className="bg-white rounded-3xl border border-amber-100 shadow-sm h-[calc(100vh-230px)] min-h-[560px] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between gap-3 p-5 border-b border-amber-100 bg-amber-50/60">
               <div className="flex flex-wrap items-center gap-3">
-                <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-50 text-amber-700 text-sm font-semibold">
+                <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white text-amber-700 text-sm font-semibold border border-amber-200">
                   <MapPin className="w-4 h-4" />
                   {userLocation ? userLocation.address.split(',')[0] : 'Österreich'}
                 </span>
-                <p className="text-sm text-gray-600">Adresse eingeben und Imker in deiner Nähe finden.</p>
+                <p className="text-sm text-gray-600">
+                  {userLocation
+                    ? `${filteredBeekeepers.length} Ergebnisse im Umkreis von ${filters.maxDistance} km`
+                    : `${filteredBeekeepers.length} Ergebnisse in deiner Nähe`}
+                </p>
               </div>
-              <div className="flex flex-col sm:flex-row gap-3 items-stretch">
-                <div className="flex-1 min-w-0">
-                  <LocationSearch
-                    onLocationChange={handleLocationChange}
-                    currentLocation={userLocation?.address}
-                  />
-                </div>
-                <button
-                  onClick={() => setIsMapModalOpen(true)}
-                  className="inline-flex items-center justify-center gap-2 px-4 py-3 bg-amber-500 text-white font-semibold rounded-lg shadow hover:bg-amber-600 transition-colors"
-                >
-                  <SlidersHorizontal className="w-5 h-5" />
-                  Karte öffnen
-                </button>
+              <div className="hidden md:flex items-center gap-2 text-sm text-gray-600">
+                <Ruler className="w-4 h-4 text-amber-600" />
+                Sortierung: Beliebteste
               </div>
             </div>
 
-            <div className="bg-white rounded-3xl shadow-lg border border-amber-100 p-4 sm:p-5">
-              <div className="flex flex-wrap items-center gap-3">
-                <button
-                  onClick={() => setSortBy('distance')}
-                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-semibold transition-colors ${
-                    sortBy === 'distance'
-                      ? 'bg-amber-500 text-white border-amber-500 shadow'
-                      : 'bg-white text-gray-700 border-amber-100 hover:border-amber-300'
-                  }`}
-                >
-                  <Filter className="w-4 h-4" /> Beliebteste
-                </button>
-
-                <div className="relative">
-                  <button
-                    onClick={() => toggleFilterDropdown('honey')}
-                    className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-semibold transition-colors ${
-                      openFilter === 'honey'
-                        ? 'bg-amber-500 text-white border-amber-500 shadow'
-                        : 'bg-white text-gray-700 border-amber-100 hover:border-amber-300'
-                    }`}
-                  >
-                    <Droplets className="w-4 h-4" /> Honigsorten
-                  </button>
-                  {openFilter === 'honey' && (
-                    <div className="absolute z-20 mt-2 w-64 bg-white border border-amber-100 rounded-2xl shadow-xl p-3 space-y-2">
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Sorten</p>
-                      <div className="flex flex-wrap gap-2">
-                        {availableHoneyTypes.map((type) => (
-                          <button
-                            key={type}
-                            onClick={() => toggleHoneyType(type)}
-                            className={`text-sm px-3 py-1.5 rounded-full border transition-colors ${
-                              filters.honeyTypes.includes(type)
-                                ? 'bg-amber-100 border-amber-300 text-amber-800'
-                                : 'border-gray-200 text-gray-700 hover:border-amber-200'
-                            }`}
-                          >
-                            {type}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="relative">
-                  <button
-                    onClick={() => toggleFilterDropdown('jar')}
-                    className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-semibold transition-colors ${
-                      openFilter === 'jar'
-                        ? 'bg-amber-500 text-white border-amber-500 shadow'
-                        : 'bg-white text-gray-700 border-amber-100 hover:border-amber-300'
-                    }`}
-                  >
-                    <Package className="w-4 h-4" /> Gebindegröße
-                  </button>
-                  {openFilter === 'jar' && (
-                    <div className="absolute z-20 mt-2 w-52 bg-white border border-amber-100 rounded-2xl shadow-xl p-3 space-y-2">
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Glasgröße</p>
-                      <div className="flex flex-wrap gap-2">
-                        {[250, 500, 1000].map((size) => (
-                          <button
-                            key={size}
-                            onClick={() => toggleJarSize(size as JarSize)}
-                            className={`text-sm px-3 py-1.5 rounded-full border transition-colors ${
-                              filters.jarSizes.includes(size as JarSize)
-                                ? 'bg-amber-100 border-amber-300 text-amber-800'
-                                : 'border-gray-200 text-gray-700 hover:border-amber-200'
-                            }`}
-                          >
-                            {size} g
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="relative">
-                  <button
-                    onClick={() => toggleFilterDropdown('distance')}
-                    className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-semibold transition-colors ${
-                      openFilter === 'distance'
-                        ? 'bg-amber-500 text-white border-amber-500 shadow'
-                        : 'bg-white text-gray-700 border-amber-100 hover:border-amber-300'
-                    } ${isDistanceDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
-                    disabled={isDistanceDisabled}
-                  >
-                    <Ruler className="w-4 h-4" /> Entfernung
-                  </button>
-                  {openFilter === 'distance' && (
-                    <div className="absolute z-20 mt-2 w-80 bg-white border border-amber-100 rounded-2xl shadow-xl p-4 space-y-3">
-                      <div className="flex items-center justify-between text-sm text-gray-600">
-                        <span>Max. Entfernung</span>
-                        <span className="font-semibold text-gray-900">{filters.maxDistance} km</span>
-                      </div>
-                      <input
-                        type="range"
-                        min={5}
-                        max={200}
-                        step={5}
-                        value={filters.maxDistance}
-                        onChange={(e) => handleDistanceChange(Number(e.target.value))}
-                        className="w-full accent-amber-500"
-                      />
-                    </div>
-                  )}
-                </div>
-
-                <div className="relative">
-                  <button
-                    onClick={() => toggleFilterDropdown('price')}
-                    className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-semibold transition-colors ${
-                      openFilter === 'price'
-                        ? 'bg-amber-500 text-white border-amber-500 shadow'
-                        : 'bg-white text-gray-700 border-amber-100 hover:border-amber-300'
-                    }`}
-                  >
-                    <BadgeCheck className="w-4 h-4" /> Preis
-                  </button>
-                  {openFilter === 'price' && (
-                    <div className="absolute z-20 mt-2 w-72 bg-white border border-amber-100 rounded-2xl shadow-xl p-4 space-y-3">
-                      <div className="flex items-center justify-between text-sm text-gray-600">
-                        <span>Maximalpreis pro Glas</span>
-                        <span className="font-semibold text-gray-900">€ {filters.priceRange[1].toFixed(0)}</span>
-                      </div>
-                      <input
-                        type="range"
-                        min={0}
-                        max={50}
-                        step={1}
-                        value={filters.priceRange[1]}
-                        onChange={(e) => handleMaxPriceChange(Number(e.target.value))}
-                        className="w-full accent-amber-500"
-                      />
-                    </div>
-                  )}
-                </div>
-
-                <button
-                  onClick={() => setFilters((prev) => ({ ...prev, hasWebsite: !prev.hasWebsite }))}
-                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-semibold transition-colors ${
-                    filters.hasWebsite
-                      ? 'bg-amber-500 text-white border-amber-500 shadow'
-                      : 'bg-white text-gray-700 border-amber-100 hover:border-amber-300'
-                  }`}
-                >
-                  <BadgeCheck className="w-4 h-4" /> Bio-Zertifiziert
-                </button>
-
-                <button
-                  onClick={() => setFilters((prev) => ({ ...prev, openNow: !prev.openNow }))}
-                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-semibold transition-colors ${
-                    filters.openNow
-                      ? 'bg-amber-500 text-white border-amber-500 shadow'
-                      : 'bg-white text-gray-700 border-amber-100 hover:border-amber-300'
-                  }`}
-                >
-                  <BadgeCheck className="w-4 h-4" /> Jetzt geöffnet
-                </button>
-
-                <button
-                  onClick={resetFilters}
-                  className="ml-auto inline-flex items-center gap-2 px-4 py-2 rounded-full border border-amber-200 text-sm font-semibold text-amber-800 hover:border-amber-400 hover:bg-amber-50 transition-colors"
-                >
-                  Filter zurücksetzen
-                </button>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-3xl shadow-lg border border-amber-100 p-5 sm:p-6 space-y-5">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm text-gray-500">{userLocation ? 'Ergebnisse in deiner Nähe' : 'Alle Imker in Österreich'}</p>
-                  <h2 className="text-2xl font-bold text-gray-900">
-                    {filteredBeekeepers.length} {filteredBeekeepers.length === 1 ? 'Ergebnis' : 'Ergebnisse'}
-                  </h2>
-                </div>
-                <div className="inline-flex items-center gap-2 px-3 py-2 rounded-full bg-amber-50 text-amber-800 text-sm font-semibold">
-                  <Filter className="w-4 h-4" /> Sortierung: {sortBy === 'distance' ? 'Entfernung' : sortBy === 'name' ? 'Name' : 'Preis'}
-                </div>
-              </div>
-
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
               {loading ? (
-                <div className="flex items-center justify-center h-48">
-                  <Loader2 className="w-10 h-10 animate-spin text-amber-600" />
+                <div className="flex flex-col items-center justify-center py-12 gap-3">
+                  <Loader2 className="w-8 h-8 text-amber-500 animate-spin" />
+                  <p className="text-sm text-gray-600">Imker werden geladen...</p>
+                </div>
+              ) : error ? (
+                <div className="bg-red-50 border border-red-100 text-red-700 rounded-2xl p-4">
+                  {error}
                 </div>
               ) : filteredBeekeepers.length === 0 ? (
-                <div className="py-10 bg-amber-50/50 rounded-2xl border border-dashed border-amber-200 px-4 sm:px-8 text-center">
-                  <span className="text-5xl mb-4 block">🔍</span>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                    {userLocation
-                      ? 'Leider ist im ausgewählten Suchradius kein Imker verfügbar'
-                      : 'Keine Imker gefunden'}
-                  </h3>
-                  <p className="text-gray-600 mb-4">
-                    {userLocation
-                      ? 'Erhöhe deinen Radius oder passe die Filter an, um mehr Ergebnisse zu sehen.'
-                      : 'Gib einen Standort ein, um Imker in deiner Nähe zu finden'}
-                  </p>
-                  {userLocation && (
-                    <button
-                      onClick={() =>
-                        setFilters({ ...filters, maxDistance: Math.min(filters.maxDistance + 20, 200) })
-                      }
-                      className="px-6 py-2 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-lg transition-colors"
-                    >
-                      Suchradius erweitern ({filters.maxDistance + 20} km)
-                    </button>
-                  )}
-
-                  {userLocation && outsideBeekeepers.length > 0 && (
-                    <div className="mt-8 text-left">
-                      <h4 className="text-lg font-semibold text-gray-900 mb-4">
-                        Nächste Imker außerhalb deines Suchradius
-                      </h4>
-                      <div className="grid grid-cols-1 gap-4">
-                        {outsideBeekeepers.map((beekeeper: Beekeeper) => (
-                          <BeekeeperCard
-                            key={beekeeper.id}
-                            beekeeper={beekeeper}
-                            onClick={() => handleCardClick(beekeeper)}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                <div className="bg-amber-50 border border-amber-100 text-amber-800 rounded-2xl p-4">
+                  Keine Imker gefunden. Passe deine Filter an.
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-4">
@@ -708,12 +621,29 @@ export default function Home() {
                   ))}
                 </div>
               )}
+
+              {userLocation && outsideBeekeepers.length > 0 && (
+                <div className="pt-4 border-t border-amber-100">
+                  <h4 className="text-lg font-semibold text-gray-900 mb-3">
+                    Imker außerhalb deines Suchradius
+                  </h4>
+                  <div className="grid grid-cols-1 gap-3">
+                    {outsideBeekeepers.map((beekeeper: Beekeeper) => (
+                      <BeekeeperCard
+                        key={beekeeper.id}
+                        beekeeper={beekeeper}
+                        onClick={() => handleCardClick(beekeeper)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </section>
 
-          <aside className="relative">
-            <div className="sticky top-6">
-              <div className="relative h-[calc(100vh-200px)] min-h-[520px] bg-white rounded-3xl shadow-xl border border-amber-100 overflow-hidden">
+          <aside className="relative h-[calc(100vh-230px)] min-h-[560px]">
+            <div className="sticky top-24 h-full">
+              <div className="relative h-full bg-white rounded-3xl shadow-xl border border-amber-100 overflow-hidden">
                 <div className="absolute inset-4 rounded-2xl overflow-hidden border border-amber-100">
                   <BeekeeperMap
                     beekeepers={mapBeekeepers}
