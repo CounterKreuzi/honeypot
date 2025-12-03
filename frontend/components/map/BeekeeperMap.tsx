@@ -47,6 +47,54 @@ export default function BeekeeperMap({
   const hasFittedRef = useRef(false);
   const previousUserLocationRef = useRef<[number, number] | undefined>();
 
+  const getLowestPrice = (beekeeper: Beekeeper) => {
+    const normalizePrice = (
+      price: number | string | null | undefined
+    ): number | null => {
+      if (price === null || price === undefined) return null;
+
+      if (typeof price === 'string') {
+        const parsed = parseFloat(price.replace(',', '.'));
+        return Number.isFinite(parsed) ? parsed : null;
+      }
+
+      return Number.isFinite(price) ? price : null;
+    };
+
+    const prices = beekeeper.honeyTypes
+      .flatMap((honey) => [honey.price250, honey.price500, honey.price1000])
+      .map(normalizePrice)
+      .filter((price): price is number => price !== null);
+
+    if (prices.length === 0) return null;
+    return Math.min(...prices);
+  };
+
+  const buildTooltipContent = (beekeeper: Beekeeper) => {
+    const heroImage = beekeeper.photo || beekeeper.logo || beekeeper.honeyTypes[0]?.image;
+    const lowestPrice = getLowestPrice(beekeeper);
+    const honeyCount = beekeeper.honeyTypes.length;
+
+    return `
+      <div class="beekeeper-tooltip-card">
+        <div class="beekeeper-tooltip-image" style="${
+          heroImage
+            ? `background-image: url('${heroImage}');`
+            : 'background-image: linear-gradient(135deg, #f7e9c4 0%, #f1d284 100%);'
+        }"></div>
+        <div class="beekeeper-tooltip-content">
+          <div class="beekeeper-tooltip-header">
+            <span class="beekeeper-badge">${honeyCount > 0 ? `${honeyCount} Sorten` : 'Imker'}</span>
+            ${lowestPrice !== null ? `<span class="beekeeper-price">ab €${lowestPrice.toFixed(2)}</span>` : ''}
+          </div>
+          <h3 class="beekeeper-tooltip-title">${beekeeper.name}</h3>
+          ${beekeeper.distance !== undefined ? `<p class="beekeeper-distance">${beekeeper.distance} km entfernt</p>` : ''}
+          <p class="beekeeper-address">${beekeeper.city ? `${beekeeper.city}, ` : ''}${beekeeper.address}</p>
+        </div>
+      </div>
+    `;
+  };
+
   useEffect(() => {
     if (!containerRef.current || mapRef.current) {
       return;
@@ -147,19 +195,20 @@ export default function BeekeeperMap({
         zIndexOffset: isActive ? 100 : 0,
       });
 
-      const popupContent = `
-        <div class="p-2">
-          <h3 class="font-bold text-lg mb-1">${beekeeper.name}</h3>
-          ${beekeeper.description ? `<p class="text-sm text-gray-600 mb-2">${beekeeper.description.substring(0, 100)}...</p>` : ''}
-          ${beekeeper.distance !== undefined ? `<p class="text-sm font-semibold text-amber-600">📍 ${beekeeper.distance} km entfernt</p>` : ''}
-          <p class="text-sm mt-2">${beekeeper.address}, ${beekeeper.city || ''}</p>
-          ${beekeeper.phone ? `<p class="text-sm">📞 ${beekeeper.phone}</p>` : ''}
-          ${beekeeper.honeyTypes.length > 0 ? `<p class="text-sm mt-2 font-semibold">🍯 ${beekeeper.honeyTypes.length} Honigsorten</p>` : ''}
-        </div>
-      `;
-
       if (showPopups) {
-        marker.bindPopup(popupContent);
+        const tooltipContent = buildTooltipContent(beekeeper);
+        const tooltip = L.tooltip({
+          direction: 'top',
+          offset: [0, -10],
+          opacity: 1,
+          className: 'beekeeper-tooltip',
+          interactive: true,
+        });
+
+        marker.bindTooltip(tooltipContent, tooltip.options);
+        marker.on('mouseover', () => marker.openTooltip());
+        marker.on('mouseout', () => marker.closeTooltip());
+        marker.bindPopup(tooltipContent, { className: 'beekeeper-tooltip-popup' });
       }
 
       if (onMarkerClick) {
