@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Beekeeper } from '@/types/api';
@@ -47,7 +47,7 @@ export default function BeekeeperMap({
   const hasFittedRef = useRef(false);
   const previousUserLocationRef = useRef<[number, number] | undefined>();
 
-  const getLowestPrice = (beekeeper: Beekeeper) => {
+  const getLowestPrice = useCallback((beekeeper: Beekeeper) => {
     const normalizePrice = (
       price: number | string | null | undefined
     ): number | null => {
@@ -68,9 +68,10 @@ export default function BeekeeperMap({
 
     if (prices.length === 0) return null;
     return Math.min(...prices);
-  };
+  }, []);
 
-  const buildTooltipContent = (beekeeper: Beekeeper) => {
+  const buildTooltipContent = useCallback(
+    (beekeeper: Beekeeper) => {
     const heroImage = beekeeper.photo || beekeeper.logo || beekeeper.honeyTypes[0]?.image;
     const lowestPrice = getLowestPrice(beekeeper);
     const honeyCount = beekeeper.honeyTypes.length;
@@ -89,11 +90,13 @@ export default function BeekeeperMap({
           </div>
           <h3 class="beekeeper-tooltip-title">${beekeeper.name}</h3>
           ${beekeeper.distance !== undefined ? `<p class="beekeeper-distance">${beekeeper.distance} km entfernt</p>` : ''}
-          <p class="beekeeper-address">${beekeeper.city ? `${beekeeper.city}, ` : ''}${beekeeper.address}</p>
-        </div>
-      </div>
+      <p class="beekeeper-address">${beekeeper.city ? `${beekeeper.city}, ` : ''}${beekeeper.address}</p>
+    </div>
+  </div>
     `;
-  };
+    },
+    [getLowestPrice]
+  );
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) {
@@ -240,7 +243,7 @@ export default function BeekeeperMap({
     return () => {
       markers.forEach((marker) => marker.off());
     };
-  }, [beekeepers, onMarkerClick, mapId, userLocation, showPopups, activeBeekeeperIds]);
+    }, [beekeepers, onMarkerClick, mapId, userLocation, showPopups, activeBeekeeperIds, buildTooltipContent]);
 
   return (
     <div
