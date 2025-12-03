@@ -15,3 +15,91 @@
 .leaflet-popup-content {
   margin: 0;
 }
+
+.beekeeper-tooltip.leaflet-tooltip {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.beekeeper-tooltip-popup .leaflet-popup-content-wrapper,
+.beekeeper-tooltip-popup .leaflet-popup-tip {
+  background: transparent;
+  box-shadow: none;
+}
+
+.beekeeper-tooltip-card {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 12px;
+  align-items: center;
+  max-width: 320px;
+  padding: 12px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.18), 0 4px 14px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.beekeeper-tooltip-image {
+  width: 96px;
+  height: 96px;
+  border-radius: 12px;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+}
+
+.beekeeper-tooltip-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.beekeeper-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 12px;
+  background: #fef3c7;
+  color: #92400e;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.01em;
+}
+
+.beekeeper-price {
+  color: #0b3b2e;
+  font-weight: 700;
+  font-size: 13px;
+  padding: 4px 10px;
+  background: #e8f5f1;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.beekeeper-tooltip-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 6px 0;
+  line-height: 1.2;
+}
+
+.beekeeper-distance {
+  color: #b45309;
+  font-weight: 600;
+  font-size: 13px;
+  margin: 0 0 4px 0;
+}
+
+.beekeeper-address {
+  color: #475569;
+  font-size: 13px;
+  margin: 0;
+}
