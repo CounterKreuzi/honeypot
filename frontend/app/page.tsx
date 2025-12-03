@@ -85,6 +85,7 @@ export default function Home() {
     setSelectedBeekeeper,
     loading,
     setLoading,
+    error,
     setError
   } = useBeekeeperStore();
 
