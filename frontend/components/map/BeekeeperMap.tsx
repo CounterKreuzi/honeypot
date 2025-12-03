@@ -48,14 +48,23 @@ export default function BeekeeperMap({
   const previousUserLocationRef = useRef<[number, number] | undefined>();
 
   const getLowestPrice = (beekeeper: Beekeeper) => {
+    const normalizePrice = (
+      price: number | string | null | undefined
+    ): number | null => {
+      if (price === null || price === undefined) return null;
+
+      if (typeof price === 'string') {
+        const parsed = parseFloat(price.replace(',', '.'));
+        return Number.isFinite(parsed) ? parsed : null;
+      }
+
+      return Number.isFinite(price) ? price : null;
+    };
+
     const prices = beekeeper.honeyTypes
       .flatMap((honey) => [honey.price250, honey.price500, honey.price1000])
-      .map((price) =>
-        typeof price === 'string'
-          ? parseFloat(price.replace(',', '.'))
-          : price ?? Number.POSITIVE_INFINITY
-      )
-      .filter((price) => Number.isFinite(price));
+      .map(normalizePrice)
+      .filter((price): price is number => price !== null);
 
     if (prices.length === 0) return null;
     return Math.min(...prices);
@@ -76,7 +85,7 @@ export default function BeekeeperMap({
         <div class="beekeeper-tooltip-content">
           <div class="beekeeper-tooltip-header">
             <span class="beekeeper-badge">${honeyCount > 0 ? `${honeyCount} Sorten` : 'Imker'}</span>
-            ${lowestPrice ? `<span class="beekeeper-price">ab €${lowestPrice.toFixed(2)}</span>` : ''}
+            ${lowestPrice !== null ? `<span class="beekeeper-price">ab €${lowestPrice.toFixed(2)}</span>` : ''}
           </div>
           <h3 class="beekeeper-tooltip-title">${beekeeper.name}</h3>
           ${beekeeper.distance !== undefined ? `<p class="beekeeper-distance">${beekeeper.distance} km entfernt</p>` : ''}
