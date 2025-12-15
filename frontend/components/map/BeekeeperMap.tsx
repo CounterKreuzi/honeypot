@@ -44,8 +44,8 @@ export default function BeekeeperMap({
   const mapRef = useRef<L.Map | null>(null);
   const markerLayerRef = useRef<L.LayerGroup | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const hasFittedRef = useRef(false);
   const previousUserLocationRef = useRef<[number, number] | undefined>();
+  const previousFitSignatureRef = useRef('');
 
   const getLowestPrice = useCallback((beekeeper: Beekeeper) => {
     const normalizePrice = (
@@ -230,14 +230,51 @@ export default function BeekeeperMap({
       previousUserLocationRef.current = userLocation;
     }
 
-    const shouldFitBounds = (!hasFittedRef.current || userLocationChanged) && markers.length > 0;
+    const beekeepersToFocus = activeBeekeeperIds
+      ? beekeepers.filter((beekeeper) => activeBeekeeperIds.includes(beekeeper.id))
+      : beekeepers;
+
+    const fitPoints: [number, number][] = [];
+
+    beekeepersToFocus.forEach((beekeeper) => {
+      const lat = typeof beekeeper.latitude === 'string'
+        ? parseFloat(beekeeper.latitude)
+        : beekeeper.latitude;
+      const lng = typeof beekeeper.longitude === 'string'
+        ? parseFloat(beekeeper.longitude)
+        : beekeeper.longitude;
+
+      if (isNaN(lat) || isNaN(lng)) return;
+
+      fitPoints.push([lat, lng]);
+    });
+
+    if (userLocation) {
+      fitPoints.push(userLocation);
+    }
+
+    const fitSignature = fitPoints
+      .map(([lat, lng]) => `${lat.toFixed(5)},${lng.toFixed(5)}`)
+      .sort()
+      .join('|');
+
+    const shouldFitBounds =
+      fitPoints.length > 0 &&
+      (userLocationChanged || fitSignature !== previousFitSignatureRef.current);
 
     if (shouldFitBounds) {
-      const group = L.featureGroup(markers);
-      mapRef.current.fitBounds(group.getBounds().pad(0.1), {
-        animate: false,
-      });
-      hasFittedRef.current = true;
+      if (fitPoints.length === 1) {
+        mapRef.current.setView(fitPoints[0], Math.max(mapRef.current.getZoom(), 12), {
+          animate: false,
+        });
+      } else {
+        const bounds = L.latLngBounds(fitPoints);
+        mapRef.current.fitBounds(bounds.pad(0.1), {
+          animate: false,
+        });
+      }
+
+      previousFitSignatureRef.current = fitSignature;
     }
 
     return () => {
