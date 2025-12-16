@@ -140,8 +140,7 @@ export default function BeekeeperMap({
     if (!mapRef.current) return;
 
     mapRef.current.invalidateSize();
-    mapRef.current.setView(center, zoom, { animate: false });
-  }, [invalidateSizeKey, center, zoom]);
+  }, [invalidateSizeKey]);
 
   useEffect(() => {
     if (!mapRef.current || !markerLayerRef.current) {
