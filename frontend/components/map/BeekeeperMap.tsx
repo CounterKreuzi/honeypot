@@ -100,6 +100,7 @@ export default function BeekeeperMap({
     [getLowestPrice]
   );
 
+  // FIX: Dependency Array ist jetzt leer [], damit die Karte nur EINMAL initialisiert wird.
   useEffect(() => {
     if (!containerRef.current || mapRef.current) {
       return;
@@ -128,7 +129,8 @@ export default function BeekeeperMap({
       }
       markerLayerRef.current = null;
     };
-  }, [center, zoom]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); 
 
   useEffect(() => {
     if (!mapRef.current) {
