@@ -279,7 +279,15 @@ export const updateBeekeeper = async (
     const targetAddress = value.address ?? beekeeper.address;
     const targetCity = value.city ?? beekeeper.city ?? undefined;
     const targetPostalCode = value.postalCode ?? beekeeper.postalCode ?? undefined;
-    const addressChanged = 'address' in value || 'city' in value || 'postalCode' in value;
+    const addressChanged =
+      (value.address !== undefined && value.address !== beekeeper.address) ||
+      (value.city !== undefined && value.city !== beekeeper.city) ||
+      (value.postalCode !== undefined && value.postalCode !== beekeeper.postalCode);
+
+    if (addressChanged) {
+      latitude = undefined;
+      longitude = undefined;
+    }
 
     if (targetAddress && (addressChanged || !latitude || !longitude)) {
       const geocode = await geocodeAddress(targetAddress, targetCity || undefined, targetPostalCode || undefined);
