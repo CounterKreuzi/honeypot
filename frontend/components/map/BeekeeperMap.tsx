@@ -45,6 +45,8 @@ export default function BeekeeperMap({
   const markerLayerRef = useRef<L.LayerGroup | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const previousUserLocationRef = useRef<[number, number] | undefined>();
+  const previousCenterRef = useRef<[number, number] | null>(null);
+  const previousZoomRef = useRef<number | null>(null);
   const previousFitSignatureRef = useRef('');
 
   const getLowestPrice = useCallback((beekeeper: Beekeeper) => {
@@ -126,6 +128,24 @@ export default function BeekeeperMap({
       }
       markerLayerRef.current = null;
     };
+  }, [center, zoom]);
+
+  useEffect(() => {
+    if (!mapRef.current) {
+      return;
+    }
+
+    const centerChanged =
+      !previousCenterRef.current ||
+      previousCenterRef.current[0] !== center[0] ||
+      previousCenterRef.current[1] !== center[1];
+    const zoomChanged = previousZoomRef.current !== zoom;
+
+    if (centerChanged || zoomChanged) {
+      mapRef.current.setView(center, zoom, { animate: false });
+      previousCenterRef.current = center;
+      previousZoomRef.current = zoom;
+    }
   }, [center, zoom]);
 
   useEffect(() => {
