@@ -28,6 +28,7 @@ interface BeekeeperMapProps {
   showPopups?: boolean;
   activeBeekeeperIds?: string[];
   invalidateSizeKey?: unknown;
+  requireTapToActivate?: boolean;
 }
 
 export default function BeekeeperMap({
@@ -40,6 +41,7 @@ export default function BeekeeperMap({
   showPopups = true,
   activeBeekeeperIds,
   invalidateSizeKey,
+  requireTapToActivate = false,
 }: BeekeeperMapProps) {
   const mapRef = useRef<L.Map | null>(null);
   const markerLayerRef = useRef<L.LayerGroup | null>(null);
@@ -48,6 +50,7 @@ export default function BeekeeperMap({
   const previousCenterRef = useRef<[number, number] | null>(null);
   const previousZoomRef = useRef<number | null>(null);
   const previousFitSignatureRef = useRef('');
+  const interactionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const getLowestPrice = useCallback((beekeeper: Beekeeper) => {
     const normalizePrice = (
@@ -129,6 +132,87 @@ export default function BeekeeperMap({
       markerLayerRef.current = null;
     };
   }, [center, zoom]);
+
+  useEffect(() => {
+    if (!mapRef.current || !containerRef.current) {
+      return;
+    }
+
+    const map = mapRef.current;
+    const container = containerRef.current;
+
+    const disableInteractions = () => {
+      map.dragging.disable();
+      map.scrollWheelZoom.disable();
+      map.doubleClickZoom.disable();
+      map.boxZoom.disable();
+      map.keyboard.disable();
+      map.touchZoom.disable();
+      (map as L.Map & { tap?: { disable: () => void } }).tap?.disable();
+    };
+
+    const enableInteractions = () => {
+      map.dragging.enable();
+      map.scrollWheelZoom.enable();
+      map.doubleClickZoom.enable();
+      map.boxZoom.enable();
+      map.keyboard.enable();
+      map.touchZoom.enable();
+      (map as L.Map & { tap?: { enable: () => void } }).tap?.enable();
+    };
+
+    const clearInteractionTimeout = () => {
+      if (interactionTimeoutRef.current) {
+        clearTimeout(interactionTimeoutRef.current);
+        interactionTimeoutRef.current = null;
+      }
+    };
+
+    const scheduleDisable = (delay = 2000) => {
+      clearInteractionTimeout();
+      interactionTimeoutRef.current = setTimeout(() => {
+        disableInteractions();
+      }, delay);
+    };
+
+    if (!requireTapToActivate) {
+      enableInteractions();
+      clearInteractionTimeout();
+      return;
+    }
+
+    disableInteractions();
+
+    const activateMap = () => {
+      enableInteractions();
+      scheduleDisable();
+    };
+
+    const keepAlive = () => {
+      scheduleDisable();
+    };
+
+    const deactivateMapSoon = () => {
+      scheduleDisable(600);
+    };
+
+    container.addEventListener('touchstart', activateMap, { passive: true });
+    container.addEventListener('mousedown', activateMap);
+    container.addEventListener('touchmove', keepAlive, { passive: true });
+    container.addEventListener('mousemove', keepAlive);
+    container.addEventListener('touchend', deactivateMapSoon);
+    container.addEventListener('mouseleave', deactivateMapSoon);
+
+    return () => {
+      clearInteractionTimeout();
+      container.removeEventListener('touchstart', activateMap);
+      container.removeEventListener('mousedown', activateMap);
+      container.removeEventListener('touchmove', keepAlive);
+      container.removeEventListener('mousemove', keepAlive);
+      container.removeEventListener('touchend', deactivateMapSoon);
+      container.removeEventListener('mouseleave', deactivateMapSoon);
+    };
+  }, [requireTapToActivate]);
 
   useEffect(() => {
     if (!mapRef.current) {

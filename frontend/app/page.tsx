@@ -97,6 +97,10 @@ export default function Home() {
   const [sortBy] = useState<'distance' | 'name' | 'price'>('distance');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [openFilter, setOpenFilter] = useState<string | null>(null);
+  const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
+  const [mobileView, setMobileView] = useState<'list' | 'map'>('list');
+  const [mapPreview, setMapPreview] = useState<Beekeeper | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
 
   // Initial load - alle Imker ohne Location
   useEffect(() => {
@@ -111,6 +115,36 @@ export default function Home() {
       setIsLoggedIn(Boolean(token));
     }
   }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia('(max-width: 1023px)');
+    const updateMobileState = () => {
+      setIsMobile(mediaQuery.matches);
+    };
+
+    updateMobileState();
+    mediaQuery.addEventListener('change', updateMobileState);
+
+    return () => {
+      mediaQuery.removeEventListener('change', updateMobileState);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') {
+      return;
+    }
+
+    document.body.classList.toggle('overflow-hidden', isFilterDrawerOpen);
+
+    return () => {
+      document.body.classList.remove('overflow-hidden');
+    };
+  }, [isFilterDrawerOpen]);
 
   const loadBeekeepers = async () => {
     try {
@@ -328,13 +362,13 @@ export default function Home() {
   );
 
   const handleMarkerClick = (beekeeper: Beekeeper) => {
-    setSelectedBeekeeper(beekeeper);
-    setIsDetailModalOpen(true);
+    setMapPreview(beekeeper);
   };
 
   const handleCardClick = (beekeeper: Beekeeper) => {
     setSelectedBeekeeper(beekeeper);
     setIsDetailModalOpen(true);
+    setMapPreview(null);
   };
 
   const handleCloseDetailModal = () => {
@@ -382,7 +416,7 @@ export default function Home() {
 
 
   return (
-    <main className="min-h-screen bg-zinc-50">
+    <main className="min-h-screen bg-zinc-50 pb-24 sm:pb-0">
       <header className="bg-white border-b shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-3">
@@ -426,159 +460,180 @@ export default function Home() {
       </header>
 
       <section className="bg-white border-b shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center gap-3">
-          <span className="text-sm font-semibold text-gray-700">Filter:</span>
-
-          <div className="relative">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+          <div className="flex items-center justify-between gap-3 sm:hidden">
             <button
-              onClick={() => toggleFilterDropdown('distance')}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-semibold transition-colors ${
-                openFilter === 'distance'
-                  ? 'bg-amber-500 text-white border-amber-500 shadow'
-                  : 'bg-white text-gray-700 border-amber-200 hover:border-amber-300'
-              }`}
-              disabled={isDistanceDisabled}
+              onClick={() => setIsFilterDrawerOpen(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-amber-200 bg-amber-50 text-amber-700 text-sm font-semibold"
             >
-              <MapPin className="w-4 h-4" />
-              {isDistanceDisabled ? 'Entfernung (Adresse nötig)' : `${filters.maxDistance} km`}
+              Filter
             </button>
-            {openFilter === 'distance' && !isDistanceDisabled && (
-              <div className="absolute z-20 mt-2 w-72 bg-white border border-amber-100 rounded-2xl shadow-xl p-3 space-y-3">
-                <div className="flex items-center justify-between text-sm font-semibold text-gray-700">
-                  <span>Suchradius</span>
-                  <span className="text-amber-600">{filters.maxDistance} km</span>
-                </div>
-                <input
-                  type="range"
-                  min="5"
-                  max="200"
-                  step="5"
-                  value={filters.maxDistance}
-                  onChange={(e) => handleDistanceChange(Number(e.target.value))}
-                  className="w-full accent-amber-500"
-                />
-                <div className="flex justify-between text-xs text-gray-500">
-                  <span>5 km</span>
-                  <span>200 km</span>
-                </div>
-              </div>
-            )}
+            <button
+              onClick={resetFilters}
+              className="inline-flex items-center gap-2 px-3 py-2 text-sm font-semibold text-amber-700"
+            >
+              Filter zurücksetzen
+            </button>
           </div>
 
-          <div className="relative">
-            <button
-              onClick={() => toggleFilterDropdown('price')}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-semibold transition-colors ${
-                openFilter === 'price'
-                  ? 'bg-amber-500 text-white border-amber-500 shadow'
-                  : 'bg-white text-gray-700 border-amber-200 hover:border-amber-300'
-              }`}
-            >
-              <BadgeCheck className="w-4 h-4" />
-              Preis bis {filters.priceRange[1]}€
-            </button>
-            {openFilter === 'price' && (
-              <div className="absolute z-20 mt-2 w-72 bg-white border border-amber-100 rounded-2xl shadow-xl p-3 space-y-3">
-                <div className="flex items-center justify-between text-sm font-semibold text-gray-700">
-                  <span>Maximaler Preis</span>
-                  <span className="text-amber-600">{filters.priceRange[1]}€</span>
-                </div>
-                <input
-                  type="range"
-                  min="5"
-                  max="50"
-                  step="1"
-                  value={filters.priceRange[1]}
-                  onChange={(e) => handleMaxPriceChange(Number(e.target.value))}
-                  className="w-full accent-amber-500"
-                />
-                <div className="flex justify-between text-xs text-gray-500">
-                  <span>5€</span>
-                  <span>50€</span>
-                </div>
-              </div>
-            )}
-          </div>
+          <div className="hidden sm:flex flex-wrap items-center gap-3">
+            <span className="text-sm font-semibold text-gray-700">Filter:</span>
 
-          <div className="relative">
-            <button
-              onClick={() => toggleFilterDropdown('jar')}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-semibold transition-colors ${
-                openFilter === 'jar'
-                  ? 'bg-amber-500 text-white border-amber-500 shadow'
-                  : 'bg-white text-gray-700 border-amber-200 hover:border-amber-300'
-              }`}
-            >
-              <Package className="w-4 h-4" />
-              Gebindegröße
-            </button>
-            {openFilter === 'jar' && (
-              <div className="absolute z-20 mt-2 w-64 bg-white border border-amber-100 rounded-2xl shadow-xl p-3 space-y-2">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Glasgrößen</p>
-                <div className="flex flex-wrap gap-2">
-                  {[250, 500, 1000].map((size) => (
-                    <button
-                      key={size}
-                      onClick={() => toggleJarSize(size as JarSize)}
-                      className={`text-sm px-3 py-1.5 rounded-full border transition-colors ${
-                        filters.jarSizes.includes(size as JarSize)
-                          ? 'bg-amber-100 border-amber-300 text-amber-800'
-                          : 'border-gray-200 text-gray-700 hover:border-amber-200'
-                      }`}
-                    >
-                      {size} g
-                    </button>
-                  ))}
+            <div className="relative">
+              <button
+                onClick={() => toggleFilterDropdown('distance')}
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-semibold transition-colors ${
+                  openFilter === 'distance'
+                    ? 'bg-amber-500 text-white border-amber-500 shadow'
+                    : 'bg-white text-gray-700 border-amber-200 hover:border-amber-300'
+                }`}
+                disabled={isDistanceDisabled}
+              >
+                <MapPin className="w-4 h-4" />
+                {isDistanceDisabled ? 'Entfernung (Adresse nötig)' : `${filters.maxDistance} km`}
+              </button>
+              {openFilter === 'distance' && !isDistanceDisabled && (
+                <div className="absolute z-20 mt-2 w-72 bg-white border border-amber-100 rounded-2xl shadow-xl p-3 space-y-3">
+                  <div className="flex items-center justify-between text-sm font-semibold text-gray-700">
+                    <span>Suchradius</span>
+                    <span className="text-amber-600">{filters.maxDistance} km</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="5"
+                    max="200"
+                    step="5"
+                    value={filters.maxDistance}
+                    onChange={(e) => handleDistanceChange(Number(e.target.value))}
+                    className="w-full accent-amber-500"
+                  />
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span>5 km</span>
+                    <span>200 km</span>
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
 
-          <div className="relative">
-            <button
-              onClick={() => toggleFilterDropdown('honey')}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-semibold transition-colors ${
-                openFilter === 'honey'
-                  ? 'bg-amber-500 text-white border-amber-500 shadow'
-                  : 'bg-white text-gray-700 border-amber-200 hover:border-amber-300'
-              }`}
-            >
-              <Droplets className="w-4 h-4" /> Honigsorten
-            </button>
-            {openFilter === 'honey' && (
-              <div className="absolute z-20 mt-2 w-72 bg-white border border-amber-100 rounded-2xl shadow-xl p-3 space-y-2">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Sorten</p>
-                <div className="flex flex-wrap gap-2">
-                  {availableHoneyTypes.map((type) => (
-                    <button
-                      key={type}
-                      onClick={() => toggleHoneyType(type)}
-                      className={`text-sm px-3 py-1.5 rounded-full border transition-colors ${
-                        filters.honeyTypes.includes(type)
-                          ? 'bg-amber-100 border-amber-300 text-amber-800'
-                          : 'border-gray-200 text-gray-700 hover:border-amber-200'
-                      }`}
-                    >
-                      {type}
-                    </button>
-                  ))}
+            <div className="relative">
+              <button
+                onClick={() => toggleFilterDropdown('price')}
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-semibold transition-colors ${
+                  openFilter === 'price'
+                    ? 'bg-amber-500 text-white border-amber-500 shadow'
+                    : 'bg-white text-gray-700 border-amber-200 hover:border-amber-300'
+                }`}
+              >
+                <BadgeCheck className="w-4 h-4" />
+                Preis bis {filters.priceRange[1]}€
+              </button>
+              {openFilter === 'price' && (
+                <div className="absolute z-20 mt-2 w-72 bg-white border border-amber-100 rounded-2xl shadow-xl p-3 space-y-3">
+                  <div className="flex items-center justify-between text-sm font-semibold text-gray-700">
+                    <span>Maximaler Preis</span>
+                    <span className="text-amber-600">{filters.priceRange[1]}€</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="5"
+                    max="50"
+                    step="1"
+                    value={filters.priceRange[1]}
+                    onChange={(e) => handleMaxPriceChange(Number(e.target.value))}
+                    className="w-full accent-amber-500"
+                  />
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span>5€</span>
+                    <span>50€</span>
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
 
-          <button
-            onClick={resetFilters}
-            className="ml-auto inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-amber-700 hover:text-amber-800"
-          >
-            Filter zurücksetzen
-          </button>
+            <div className="relative">
+              <button
+                onClick={() => toggleFilterDropdown('jar')}
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-semibold transition-colors ${
+                  openFilter === 'jar'
+                    ? 'bg-amber-500 text-white border-amber-500 shadow'
+                    : 'bg-white text-gray-700 border-amber-200 hover:border-amber-300'
+                }`}
+              >
+                <Package className="w-4 h-4" />
+                Gebindegröße
+              </button>
+              {openFilter === 'jar' && (
+                <div className="absolute z-20 mt-2 w-64 bg-white border border-amber-100 rounded-2xl shadow-xl p-3 space-y-2">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Glasgrößen</p>
+                  <div className="flex flex-wrap gap-2">
+                    {[250, 500, 1000].map((size) => (
+                      <button
+                        key={size}
+                        onClick={() => toggleJarSize(size as JarSize)}
+                        className={`text-sm px-3 py-1.5 rounded-full border transition-colors ${
+                          filters.jarSizes.includes(size as JarSize)
+                            ? 'bg-amber-100 border-amber-300 text-amber-800'
+                            : 'border-gray-200 text-gray-700 hover:border-amber-200'
+                        }`}
+                      >
+                        {size} g
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="relative">
+              <button
+                onClick={() => toggleFilterDropdown('honey')}
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-semibold transition-colors ${
+                  openFilter === 'honey'
+                    ? 'bg-amber-500 text-white border-amber-500 shadow'
+                    : 'bg-white text-gray-700 border-amber-200 hover:border-amber-300'
+                }`}
+              >
+                <Droplets className="w-4 h-4" /> Honigsorten
+              </button>
+              {openFilter === 'honey' && (
+                <div className="absolute z-20 mt-2 w-72 bg-white border border-amber-100 rounded-2xl shadow-xl p-3 space-y-2">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Sorten</p>
+                  <div className="flex flex-wrap gap-2">
+                    {availableHoneyTypes.map((type) => (
+                      <button
+                        key={type}
+                        onClick={() => toggleHoneyType(type)}
+                        className={`text-sm px-3 py-1.5 rounded-full border transition-colors ${
+                          filters.honeyTypes.includes(type)
+                            ? 'bg-amber-100 border-amber-300 text-amber-800'
+                            : 'border-gray-200 text-gray-700 hover:border-amber-200'
+                        }`}
+                      >
+                        {type}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={resetFilters}
+              className="ml-auto inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-amber-700 hover:text-amber-800"
+            >
+              Filter zurücksetzen
+            </button>
+          </div>
         </div>
       </section>
 
       <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
         <div className="grid lg:grid-cols-[1.05fr_1fr] gap-5 items-start">
-          <section className="bg-white rounded-3xl border border-amber-100 shadow-sm h-[calc(100vh-230px)] min-h-[560px] flex flex-col overflow-hidden">
+          <section
+            className={`bg-white rounded-3xl border border-amber-100 shadow-sm h-[calc(100vh-230px)] min-h-[560px] flex flex-col overflow-hidden ${
+              isMobile && mobileView === 'map' ? 'hidden' : 'block'
+            }`}
+          >
             <div className="flex items-center justify-between gap-3 p-5 border-b border-amber-100 bg-amber-50/60">
               <div className="flex flex-wrap items-center gap-3">
                 <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white text-amber-700 text-sm font-semibold border border-amber-200">
@@ -642,7 +697,11 @@ export default function Home() {
             </div>
           </section>
 
-          <aside className="relative h-[calc(100vh-230px)] min-h-[560px]">
+          <aside
+            className={`relative h-[calc(100vh-230px)] min-h-[560px] ${
+              isMobile && mobileView === 'list' ? 'hidden' : 'block'
+            }`}
+          >
             <div className="sticky top-24 h-full">
               <div className="relative h-full bg-white rounded-3xl shadow-xl border border-amber-100 overflow-hidden">
                 <div className="absolute inset-4 rounded-2xl overflow-hidden border border-amber-100">
@@ -654,8 +713,43 @@ export default function Home() {
                     userLocation={userLocation ? [userLocation.latitude, userLocation.longitude] : undefined}
                     activeBeekeeperIds={activeBeekeeperIds}
                     invalidateSizeKey={mapBeekeepers.length}
+                    requireTapToActivate={isMobile}
                   />
                 </div>
+
+                {mapPreview && (
+                  <div className="absolute bottom-6 left-6 right-6 sm:right-auto sm:max-w-sm pointer-events-none">
+                    <div className="pointer-events-auto bg-white/95 backdrop-blur rounded-2xl shadow-2xl border border-amber-100 overflow-hidden">
+                      <div className="flex items-center justify-between gap-3 p-4 border-b border-amber-50">
+                        <div>
+                          <p className="text-xs font-semibold text-amber-700">Imker Vorschau</p>
+                          <h3 className="text-base font-bold text-gray-900">{mapPreview.name}</h3>
+                          {mapPreview.distance !== undefined && (
+                            <p className="text-sm text-gray-600">{mapPreview.distance} km entfernt</p>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => setMapPreview(null)}
+                          className="text-xs font-semibold text-gray-500 hover:text-gray-700"
+                        >
+                          Schließen
+                        </button>
+                      </div>
+                      <div className="p-4 flex items-center justify-between gap-3">
+                        <div className="flex flex-wrap items-center gap-2 text-sm text-gray-700">
+                          <Droplets className="w-4 h-4 text-amber-600" />
+                          {mapPreview.honeyTypes.slice(0, 2).map((honey) => honey.name).join(', ')}
+                        </div>
+                        <button
+                          onClick={() => handleCardClick(mapPreview)}
+                          className="px-4 py-2 rounded-full bg-amber-500 text-white text-sm font-semibold shadow hover:bg-amber-600 transition-colors"
+                        >
+                          Details
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {featuredBeekeeper && (
                   <div className="absolute top-6 left-6 right-6 sm:right-auto sm:max-w-sm space-y-3 pointer-events-none">
@@ -711,6 +805,9 @@ export default function Home() {
         zoom={userLocation ? 10 : 7}
         userLocation={userLocation ? [userLocation.latitude, userLocation.longitude] : undefined}
         activeBeekeeperIds={activeBeekeeperIds}
+        previewBeekeeper={mapPreview}
+        onPreviewClose={() => setMapPreview(null)}
+        onPreviewDetails={handleCardClick}
       />
 
       {/* Beekeeper Detail Modal */}
@@ -741,6 +838,125 @@ export default function Home() {
           </div>
         </div>
       </footer>
+
+      {isFilterDrawerOpen && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-white sm:hidden">
+          <div className="flex items-center justify-between px-4 py-4 border-b border-amber-100">
+            <h2 className="text-lg font-semibold text-gray-900">Filter</h2>
+            <button
+              onClick={() => setIsFilterDrawerOpen(false)}
+              className="text-sm font-semibold text-amber-700"
+            >
+              Schließen
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-sm font-semibold text-gray-700">
+                <span>Suchradius</span>
+                <span className="text-amber-600">{filters.maxDistance} km</span>
+              </div>
+              <input
+                type="range"
+                min="5"
+                max="200"
+                step="5"
+                value={filters.maxDistance}
+                onChange={(e) => handleDistanceChange(Number(e.target.value))}
+                className="w-full accent-amber-500"
+                disabled={isDistanceDisabled}
+              />
+              <div className="flex justify-between text-xs text-gray-500">
+                <span>5 km</span>
+                <span>200 km</span>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-sm font-semibold text-gray-700">
+                <span>Maximaler Preis</span>
+                <span className="text-amber-600">{filters.priceRange[1]}€</span>
+              </div>
+              <input
+                type="range"
+                min="5"
+                max="50"
+                step="1"
+                value={filters.priceRange[1]}
+                onChange={(e) => handleMaxPriceChange(Number(e.target.value))}
+                className="w-full accent-amber-500"
+              />
+              <div className="flex justify-between text-xs text-gray-500">
+                <span>5€</span>
+                <span>50€</span>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-sm font-semibold text-gray-700">Gebindegröße</p>
+              <div className="flex flex-wrap gap-2">
+                {[250, 500, 1000].map((size) => (
+                  <button
+                    key={size}
+                    onClick={() => toggleJarSize(size as JarSize)}
+                    className={`text-sm px-3 py-1.5 rounded-full border transition-colors ${
+                      filters.jarSizes.includes(size as JarSize)
+                        ? 'bg-amber-100 border-amber-300 text-amber-800'
+                        : 'border-gray-200 text-gray-700'
+                    }`}
+                  >
+                    {size} g
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-sm font-semibold text-gray-700">Honigsorten</p>
+              <div className="flex flex-wrap gap-2">
+                {availableHoneyTypes.map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => toggleHoneyType(type)}
+                    className={`text-sm px-3 py-1.5 rounded-full border transition-colors ${
+                      filters.honeyTypes.includes(type)
+                        ? 'bg-amber-100 border-amber-300 text-amber-800'
+                        : 'border-gray-200 text-gray-700'
+                    }`}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="px-4 py-4 border-t border-amber-100 flex items-center justify-between gap-3">
+            <button
+              onClick={resetFilters}
+              className="text-sm font-semibold text-amber-700"
+            >
+              Zurücksetzen
+            </button>
+            <button
+              onClick={() => setIsFilterDrawerOpen(false)}
+              className="px-4 py-2 rounded-full bg-amber-500 text-white text-sm font-semibold shadow hover:bg-amber-600"
+            >
+              Filter anwenden
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isMobile && (
+        <div className="fixed bottom-4 inset-x-0 z-40 flex justify-center px-4 sm:hidden">
+          <button
+            onClick={() => setMobileView((prev) => (prev === 'list' ? 'map' : 'list'))}
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-amber-500 text-white text-sm font-semibold shadow-lg hover:bg-amber-600"
+          >
+            {mobileView === 'list' ? 'Karte anzeigen' : 'Liste anzeigen'}
+          </button>
+        </div>
+      )}
     </main>
   );
 }
