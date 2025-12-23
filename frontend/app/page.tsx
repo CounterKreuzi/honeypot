@@ -9,73 +9,56 @@ import BeekeeperCard from '@/components/cards/BeekeeperCard';
 import LocationSearch from '@/components/location/LocationSearch';
 import MapModal from '@/components/modals/MapModal';
 import BeekeeperDetailModal from '@/components/modals/BeekeeperDetailModal';
-import { BadgeCheck, Droplets, Loader2, MapPin, Package, Ruler } from 'lucide-react';
+import { 
+  BadgeCheck, 
+  Droplets, 
+  Loader2, 
+  MapPin, 
+  Package, 
+  List, 
+  Map as MapIcon, 
+  ChevronDown, 
+  FilterX,
+  SlidersHorizontal,
+  X
+} from 'lucide-react';
 import Link from 'next/link';
 
-type JarSize = 250 | 500 | 1000;
+// Dynamischer Import der Karte für SSR Kompatibilität
+const BeekeeperMap = dynamic(() => import('@/components/map/BeekeeperMap'), {
+  ssr: false,
+  loading: () => <div className="h-full w-full bg-zinc-100 animate-pulse rounded-2xl flex items-center justify-center text-zinc-400">Karte wird geladen...</div>
+});
 
 interface Filters {
   honeyTypes: string[];
-  priceRange: [number, number];
-  maxDistance: number;
-  hasWebsite: boolean;
-  openNow: boolean;
-  jarSizes: JarSize[];
+  bioOnly: boolean;
+  maxDistance: number | null;
 }
+
+const DEFAULT_FILTERS: Filters = {
+  honeyTypes: [],
+  bioOnly: false,
+  maxDistance: null,
+};
 
 interface UserLocation {
   latitude: number;
   longitude: number;
-  address: string;
+  address?: string;
 }
 
-const BeekeeperMap = dynamic(() => import('@/components/map/BeekeeperMap'), {
-  ssr: false,
-});
-
-const calculateDistanceKm = (
-  fromLat: number,
-  fromLng: number,
-  toLat: number,
-  toLng: number
-): number => {
-  const lat1 = fromLat * (Math.PI / 180);
-  const lat2 = toLat * (Math.PI / 180);
-  const deltaLat = (toLat - fromLat) * (Math.PI / 180);
-  const deltaLng = (toLng - fromLng) * (Math.PI / 180);
-
-  const a =
-    Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
-    Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLng / 2) * Math.sin(deltaLng / 2);
-
+// Hilfsfunktion für Distanzberechnung
+const calculateDistanceKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return 6371 * c;
+  return R * c;
 };
-
-const parsePriceValue = (price: unknown): number | null => {
-  if (price === null || price === undefined) return null;
-
-  const numericPrice =
-    typeof price === 'string' ? Number(price.replace(',', '.')) : Number(price);
-
-  return Number.isFinite(numericPrice) ? numericPrice : null;
-};
-
-const DEFAULT_FILTERS: Filters = {
-  honeyTypes: [],
-  priceRange: [0, 50],
-  maxDistance: 50,
-  hasWebsite: false,
-  openNow: false,
-  jarSizes: [],
-};
-
-const getAvailablePrices = (honeyTypes: Beekeeper['honeyTypes']) =>
-  honeyTypes.flatMap((honey) =>
-    [honey.price250, honey.price500, honey.price1000]
-      .map((price) => parsePriceValue(price))
-      .filter((price): price is number => price !== null)
-  );
 
 export default function Home() {
   const {
@@ -90,657 +73,244 @@ export default function Home() {
   } = useBeekeeperStore();
 
   const [filters, setFilters] = useState<Filters>({ ...DEFAULT_FILTERS });
-
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
-  const [isMapModalOpen, setIsMapModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const [sortBy] = useState<'distance' | 'name' | 'price'>('distance');
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [openFilter, setOpenFilter] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+  const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
 
-  // Initial load - alle Imker ohne Location
+  // Daten laden
   useEffect(() => {
-    loadBeekeepers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    const fetchBeekeepers = async () => {
+      try {
+        setLoading(true);
+        const data = await beekeepersApi.getAll();
+        setBeekeepers(data);
+      } catch (err) {
+        setError('Imker konnten nicht geladen werden.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchBeekeepers();
+  }, [setBeekeepers, setLoading, setError]);
 
-  // Check auth state for header
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('token');
-      setIsLoggedIn(Boolean(token));
-    }
-  }, []);
-
-  const loadBeekeepers = async () => {
-    try {
-      setLoading(true);
-      const data = await beekeepersApi.getAll();
-      setBeekeepers(data);
-      setError(null);
-    } catch (error) {
-      console.error('Failed to load beekeepers:', error);
-      setError('Fehler beim Laden der Imker');
-    } finally {
-      setLoading(false);
-    }
+  const handleLocationChange = (lat: number, lng: number, address: string) => {
+    setUserLocation({ latitude: lat, longitude: lng, address });
   };
-
-  // Handle location change OR reset from LocationSearch
-  const handleLocationChange = async (location: UserLocation | null) => {
-    // Wenn location null ist (Reset), lade alle Imker
-    if (location === null) {
-      console.log('🔄 Standort zurückgesetzt - lade alle Imker');
-      setUserLocation(null);
-      await loadBeekeepers();
-      return;
-    }
-
-    console.log('🔍 Standort-Suche gestartet:', location);
-
-    setUserLocation(location);
-
-    try {
-      setLoading(true);
-
-      const data = await beekeepersApi.getAll();
-
-      const beekeepersWithDistance = data
-        .map((beekeeper: Beekeeper) => {
-          const beekeeperLat = parseFloat(beekeeper.latitude.toString());
-          const beekeeperLng = parseFloat(beekeeper.longitude.toString());
-
-          if (Number.isNaN(beekeeperLat) || Number.isNaN(beekeeperLng)) {
-            return beekeeper;
-          }
-
-          const distance = calculateDistanceKm(
-            location.latitude,
-            location.longitude,
-            beekeeperLat,
-            beekeeperLng
-          );
-
-          return {
-            ...beekeeper,
-            distance: Math.round(distance * 100) / 100,
-          };
-        })
-        .sort(
-          (a, b) => (a.distance ?? Number.POSITIVE_INFINITY) - (b.distance ?? Number.POSITIVE_INFINITY)
-        );
-
-      console.log(
-        `✅ ${beekeepersWithDistance.filter((b) => (b.distance ?? Infinity) <= filters.maxDistance).length} Imker gefunden im Umkreis von ${filters.maxDistance}km`
-      );
-
-      setBeekeepers(beekeepersWithDistance);
-      setError(null);
-
-      if (
-        beekeepersWithDistance.filter((b) =>
-          b.distance !== undefined ? b.distance <= filters.maxDistance : false
-        ).length === 0
-      ) {
-        setError(
-          `Leider ist im ausgewählten Suchradius kein Imker verfügbar. Suchradius: ${filters.maxDistance}km`
-        );
-      }
-    } catch (error) {
-      console.error('Failed to search beekeepers:', error);
-      setError('Fehler bei der Standort-Suche. Bitte versuche es erneut.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Extract available honey types
-  const availableHoneyTypes = useMemo(() => {
-    const types = new Set<string>();
-    beekeepers.forEach((beekeeper: Beekeeper) => {
-      beekeeper.honeyTypes.forEach((honey) => {
-        types.add(honey.name);
-      });
-    });
-    return Array.from(types).sort();
-  }, [beekeepers]);
-
-  // Filter beekeepers based on current filters
-  const matchesCommonFilters = useCallback(
-    (beekeeper: Beekeeper) => {
-      // Honey types filter
-      if (
-        filters.honeyTypes.length > 0 &&
-        !beekeeper.honeyTypes.some((honey) => filters.honeyTypes.includes(honey.name))
-      ) {
-        return false;
-      }
-
-    // Price filter
-    const prices = getAvailablePrices(beekeeper.honeyTypes);
-    if (prices.length > 0) {
-      const cheapestPrice = Math.min(...prices);
-      if (cheapestPrice < filters.priceRange[0] || cheapestPrice > filters.priceRange[1]) {
-        return false;
-      }
-    }
-
-    if (filters.jarSizes.length > 0) {
-      const hasSelectedSize = filters.jarSizes.some((jarSize) => {
-        const jarSizeKey = `price${jarSize}` as 'price250' | 'price500' | 'price1000';
-
-        return beekeeper.honeyTypes.some((honey) => {
-          const priceForSize = parsePriceValue(honey[jarSizeKey]);
-          return priceForSize !== null;
-        });
-      });
-
-      if (!hasSelectedSize) {
-        return false;
-      }
-    }
-
-    // Website filter
-    if (filters.hasWebsite && !beekeeper.website) {
-      return false;
-    }
-
-    // OpenNow filter
-    if (filters.openNow && !beekeeper.openingHours) {
-      return false;
-    }
-
-      return true;
-    },
-    [filters]
-  );
 
   const filteredBeekeepers = useMemo(() => {
-    const insideRadius = beekeepers.filter((beekeeper: Beekeeper) => {
-      if (!matchesCommonFilters(beekeeper)) {
-        return false;
-      }
-
-      if (userLocation && beekeeper.distance !== undefined) {
-        return beekeeper.distance <= filters.maxDistance;
-      }
-
-      return true;
-    });
-
-    return insideRadius.sort((a: Beekeeper, b: Beekeeper) => {
-      // Sorting logic
-      switch (sortBy) {
-        case 'distance':
-          return (a.distance || 999) - (b.distance || 999);
-        case 'name':
-          return a.name.localeCompare(b.name);
-        case 'price':
-          const aPrices = getAvailablePrices(a.honeyTypes);
-          const bPrices = getAvailablePrices(b.honeyTypes);
-          const aPrice = aPrices.length > 0 ? Math.min(...aPrices) : Infinity;
-          const bPrice = bPrices.length > 0 ? Math.min(...bPrices) : Infinity;
-          if (!Number.isFinite(aPrice) && !Number.isFinite(bPrice)) {
-            return 0;
-          }
-          if (!Number.isFinite(aPrice)) {
-            return 1;
-          }
-          if (!Number.isFinite(bPrice)) {
-            return -1;
-          }
-          return aPrice - bPrice;
-        default:
-          return 0;
-      }
-    });
-  }, [beekeepers, filters, matchesCommonFilters, userLocation, sortBy]);
-
-  const outsideBeekeepers = useMemo(() => {
-    if (!userLocation) {
-      return [];
-    }
-
     return beekeepers
-      .filter((beekeeper: Beekeeper) => {
-        if (!matchesCommonFilters(beekeeper)) {
-          return false;
+      .map(bk => {
+        let distance: number | undefined;
+        if (userLocation && bk.latitude && bk.longitude) {
+          distance = calculateDistanceKm(
+            userLocation.latitude,
+            userLocation.longitude,
+            bk.latitude,
+            bk.longitude
+          );
         }
-
-        return beekeeper.distance !== undefined && beekeeper.distance > filters.maxDistance;
+        return { ...bk, distance: distance ? Math.round(distance * 10) / 10 : undefined };
       })
-      .sort(
-        (a: Beekeeper, b: Beekeeper) => (a.distance || Infinity) - (b.distance || Infinity)
-      );
-  }, [beekeepers, filters, matchesCommonFilters, userLocation]);
+      .filter(bk => {
+        if (filters.bioOnly && !bk.is_bio) return false;
+        if (filters.maxDistance && bk.distance && bk.distance > filters.maxDistance) return false;
+        if (filters.honeyTypes.length > 0) {
+          const hasType = bk.honey_types?.some(t => filters.honeyTypes.includes(t.name));
+          if (!hasType) return false;
+        }
+        return true;
+      })
+      .sort((a, b) => (a.distance || 999) - (b.distance || 999));
+  }, [beekeepers, filters, userLocation]);
 
-  const mapBeekeepers = useMemo(() => {
-    if (!userLocation) {
-      return filteredBeekeepers;
-    }
-
-    return beekeepers.filter((beekeeper: Beekeeper) => matchesCommonFilters(beekeeper));
-  }, [beekeepers, filteredBeekeepers, matchesCommonFilters, userLocation]);
-
-  const activeBeekeeperIds = useMemo(
-    () => filteredBeekeepers.map((beekeeper: Beekeeper) => beekeeper.id),
-    [filteredBeekeepers]
-  );
-
-  const handleMarkerClick = (beekeeper: Beekeeper) => {
-    setSelectedBeekeeper(beekeeper);
+  const handleCardClick = (bk: Beekeeper) => {
+    setSelectedBeekeeper(bk);
     setIsDetailModalOpen(true);
   };
-
-  const handleCardClick = (beekeeper: Beekeeper) => {
-    setSelectedBeekeeper(beekeeper);
-    setIsDetailModalOpen(true);
-  };
-
-  const handleCloseDetailModal = () => {
-    setIsDetailModalOpen(false);
-    setTimeout(() => setSelectedBeekeeper(null), 300);
-  };
-
-  const isDistanceDisabled = !userLocation;
-  const featuredBeekeeper = filteredBeekeepers[0];
-
-  const toggleFilterDropdown = (key: string) => {
-    setOpenFilter((prev) => (prev === key ? null : key));
-  };
-
-  const resetFilters = () => {
-    setFilters({ ...DEFAULT_FILTERS });
-    setOpenFilter(null);
-  };
-
-  const toggleHoneyType = (type: string) => {
-    setFilters((prev) => {
-      const honeyTypes = prev.honeyTypes.includes(type)
-        ? prev.honeyTypes.filter((t) => t !== type)
-        : [...prev.honeyTypes, type];
-      return { ...prev, honeyTypes };
-    });
-  };
-
-  const toggleJarSize = (size: JarSize) => {
-    setFilters((prev) => {
-      const jarSizes = prev.jarSizes.includes(size)
-        ? prev.jarSizes.filter((s) => s !== size)
-        : [...prev.jarSizes, size];
-      return { ...prev, jarSizes };
-    });
-  };
-
-  const handleDistanceChange = (value: number) => {
-    setFilters((prev) => ({ ...prev, maxDistance: value }));
-  };
-
-  const handleMaxPriceChange = (value: number) => {
-    setFilters((prev) => ({ ...prev, priceRange: [prev.priceRange[0], value] }));
-  };
-
 
   return (
-    <main className="min-h-screen bg-zinc-50">
-      <header className="bg-white border-b shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-wrap items-center gap-4">
-          <div className="flex items-center gap-3">
-            <span className="text-4xl">🍯</span>
-            <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-amber-600 font-semibold">Honeypot</p>
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Lokaler Honig in deiner Nähe</h1>
-            </div>
+    <main className="min-h-screen bg-zinc-50 pb-20 lg:pb-0">
+      {/* Header */}
+      <header className="bg-white border-b shadow-sm sticky top-0 z-30">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
+          <Link href="/" className="flex items-center gap-2 flex-shrink-0">
+            <span className="text-3xl">🍯</span>
+            <h1 className="text-xl font-black tracking-tight text-amber-900 hidden sm:block uppercase">
+              Honigfinder
+            </h1>
+          </Link>
+          <div className="flex-1 max-w-xl">
+            <LocationSearch
+              onLocationChange={handleLocationChange}
+              currentLocation={userLocation?.address}
+            />
           </div>
-
-          <div className="flex-1 min-w-[260px] flex items-center gap-3 justify-end">
-            <div className="flex-1 max-w-xl">
-              <LocationSearch
-                onLocationChange={handleLocationChange}
-                currentLocation={userLocation?.address}
-              />
-            </div>
-            <Link
-              href="/imker-werden"
-              className="hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-full border border-amber-200 bg-amber-50 text-amber-700 font-semibold hover:border-amber-300"
-            >
-              Imker werden
-            </Link>
-            {isLoggedIn ? (
-              <Link
-                href="/meinbereich"
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-500 text-white font-semibold shadow hover:bg-amber-600"
-              >
-                Profil bearbeiten
-              </Link>
-            ) : (
-              <Link
-                href="/login"
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-500 text-white font-semibold shadow hover:bg-amber-600"
-              >
-                Anmelden
-              </Link>
-            )}
-          </div>
+          <Link 
+            href="/login" 
+            className="hidden sm:block text-sm font-semibold text-zinc-600 hover:text-amber-600 transition-colors"
+          >
+            Imker Login
+          </Link>
         </div>
       </header>
 
-      <section className="bg-white border-b shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center gap-3">
-          <span className="text-sm font-semibold text-gray-700">Filter:</span>
-
-          <div className="relative">
-            <button
-              onClick={() => toggleFilterDropdown('distance')}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-semibold transition-colors ${
-                openFilter === 'distance'
-                  ? 'bg-amber-500 text-white border-amber-500 shadow'
-                  : 'bg-white text-gray-700 border-amber-200 hover:border-amber-300'
-              }`}
-              disabled={isDistanceDisabled}
+      {/* Desktop Filter Bar / Mobile Filter Button */}
+      <section className="bg-white border-b shadow-sm sticky top-[65px] z-20">
+        <div className="max-w-7xl mx-auto px-4 py-2 flex items-center justify-between overflow-x-auto no-scrollbar gap-4">
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setIsFilterDrawerOpen(true)}
+              className="flex items-center gap-2 bg-zinc-100 hover:bg-zinc-200 px-4 py-2 rounded-full text-sm font-medium transition-colors"
             >
-              <MapPin className="w-4 h-4" />
-              {isDistanceDisabled ? 'Entfernung (Adresse nötig)' : `${filters.maxDistance} km`}
+              <SlidersHorizontal size={16} />
+              <span>Filter</span>
+              {filters.honeyTypes.length + (filters.bioOnly ? 1 : 0) > 0 && (
+                <span className="bg-amber-600 text-white w-5 h-5 rounded-full text-[10px] flex items-center justify-center">
+                  {filters.honeyTypes.length + (filters.bioOnly ? 1 : 0)}
+                </span>
+              )}
             </button>
-            {openFilter === 'distance' && !isDistanceDisabled && (
-              <div className="absolute z-20 mt-2 w-72 bg-white border border-amber-100 rounded-2xl shadow-xl p-3 space-y-3">
-                <div className="flex items-center justify-between text-sm font-semibold text-gray-700">
-                  <span>Suchradius</span>
-                  <span className="text-amber-600">{filters.maxDistance} km</span>
-                </div>
-                <input
-                  type="range"
-                  min="5"
-                  max="200"
-                  step="5"
-                  value={filters.maxDistance}
-                  onChange={(e) => handleDistanceChange(Number(e.target.value))}
-                  className="w-full accent-amber-500"
-                />
-                <div className="flex justify-between text-xs text-gray-500">
-                  <span>5 km</span>
-                  <span>200 km</span>
-                </div>
-              </div>
-            )}
+
+            {/* Schnellfilter Desktop */}
+            <div className="hidden md:flex items-center gap-2 border-l pl-4 ml-2">
+              <button 
+                onClick={() => setFilters(f => ({...f, bioOnly: !f.bioOnly}))}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${filters.bioOnly ? 'bg-green-100 text-green-700 border-green-200' : 'bg-white border border-zinc-200 text-zinc-600'}`}
+              >
+                🌿 Bio-Imker
+              </button>
+            </div>
           </div>
 
-          <div className="relative">
-            <button
-              onClick={() => toggleFilterDropdown('price')}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-semibold transition-colors ${
-                openFilter === 'price'
-                  ? 'bg-amber-500 text-white border-amber-500 shadow'
-                  : 'bg-white text-gray-700 border-amber-200 hover:border-amber-300'
-              }`}
-            >
-              <BadgeCheck className="w-4 h-4" />
-              Preis bis {filters.priceRange[1]}€
-            </button>
-            {openFilter === 'price' && (
-              <div className="absolute z-20 mt-2 w-72 bg-white border border-amber-100 rounded-2xl shadow-xl p-3 space-y-3">
-                <div className="flex items-center justify-between text-sm font-semibold text-gray-700">
-                  <span>Maximaler Preis</span>
-                  <span className="text-amber-600">{filters.priceRange[1]}€</span>
-                </div>
-                <input
-                  type="range"
-                  min="5"
-                  max="50"
-                  step="1"
-                  value={filters.priceRange[1]}
-                  onChange={(e) => handleMaxPriceChange(Number(e.target.value))}
-                  className="w-full accent-amber-500"
-                />
-                <div className="flex justify-between text-xs text-gray-500">
-                  <span>5€</span>
-                  <span>50€</span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="relative">
-            <button
-              onClick={() => toggleFilterDropdown('jar')}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-semibold transition-colors ${
-                openFilter === 'jar'
-                  ? 'bg-amber-500 text-white border-amber-500 shadow'
-                  : 'bg-white text-gray-700 border-amber-200 hover:border-amber-300'
-              }`}
-            >
-              <Package className="w-4 h-4" />
-              Gebindegröße
-            </button>
-            {openFilter === 'jar' && (
-              <div className="absolute z-20 mt-2 w-64 bg-white border border-amber-100 rounded-2xl shadow-xl p-3 space-y-2">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Glasgrößen</p>
-                <div className="flex flex-wrap gap-2">
-                  {[250, 500, 1000].map((size) => (
-                    <button
-                      key={size}
-                      onClick={() => toggleJarSize(size as JarSize)}
-                      className={`text-sm px-3 py-1.5 rounded-full border transition-colors ${
-                        filters.jarSizes.includes(size as JarSize)
-                          ? 'bg-amber-100 border-amber-300 text-amber-800'
-                          : 'border-gray-200 text-gray-700 hover:border-amber-200'
-                      }`}
-                    >
-                      {size} g
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="relative">
-            <button
-              onClick={() => toggleFilterDropdown('honey')}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-semibold transition-colors ${
-                openFilter === 'honey'
-                  ? 'bg-amber-500 text-white border-amber-500 shadow'
-                  : 'bg-white text-gray-700 border-amber-200 hover:border-amber-300'
-              }`}
-            >
-              <Droplets className="w-4 h-4" /> Honigsorten
-            </button>
-            {openFilter === 'honey' && (
-              <div className="absolute z-20 mt-2 w-72 bg-white border border-amber-100 rounded-2xl shadow-xl p-3 space-y-2">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Sorten</p>
-                <div className="flex flex-wrap gap-2">
-                  {availableHoneyTypes.map((type) => (
-                    <button
-                      key={type}
-                      onClick={() => toggleHoneyType(type)}
-                      className={`text-sm px-3 py-1.5 rounded-full border transition-colors ${
-                        filters.honeyTypes.includes(type)
-                          ? 'bg-amber-100 border-amber-300 text-amber-800'
-                          : 'border-gray-200 text-gray-700 hover:border-amber-200'
-                      }`}
-                    >
-                      {type}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <button
-            onClick={resetFilters}
-            className="ml-auto inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-amber-700 hover:text-amber-800"
-          >
-            Filter zurücksetzen
-          </button>
+          <p className="text-sm text-zinc-500 whitespace-nowrap">
+            <span className="font-bold text-zinc-900">{filteredBeekeepers.length}</span> Imker gefunden
+          </p>
         </div>
       </section>
 
-      <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-        <div className="grid lg:grid-cols-[1.05fr_1fr] gap-5 items-start">
-          <section className="bg-white rounded-3xl border border-amber-100 shadow-sm h-[calc(100vh-230px)] min-h-[560px] flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between gap-3 p-5 border-b border-amber-100 bg-amber-50/60">
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white text-amber-700 text-sm font-semibold border border-amber-200">
-                  <MapPin className="w-4 h-4" />
-                  {userLocation ? userLocation.address.split(',')[0] : 'Österreich'}
-                </span>
-                <p className="text-sm text-gray-600">
-                  {userLocation
-                    ? `${filteredBeekeepers.length} Ergebnisse im Umkreis von ${filters.maxDistance} km`
-                    : `${filteredBeekeepers.length} Ergebnisse in deiner Nähe`}
-                </p>
+      <div className="max-w-7xl mx-auto px-4 py-4 lg:py-8">
+        <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-8 items-start">
+          
+          {/* Main Content: List or Map Toggle (Mobile) */}
+          <div className={`${viewMode === 'map' ? 'hidden lg:block' : 'block'}`}>
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-20 gap-4">
+                <Loader2 className="animate-spin text-amber-600" size={40} />
+                <p className="text-zinc-500 font-medium">Bienen werden gerufen...</p>
               </div>
-              <div className="hidden md:flex items-center gap-2 text-sm text-gray-600">
-                <Ruler className="w-4 h-4 text-amber-600" />
-                Sortierung: Beliebteste
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-5 space-y-4">
-              {loading ? (
-                <div className="flex flex-col items-center justify-center py-12 gap-3">
-                  <Loader2 className="w-8 h-8 text-amber-500 animate-spin" />
-                  <p className="text-sm text-gray-600">Imker werden geladen...</p>
-                </div>
-              ) : error ? (
-                <div className="bg-red-50 border border-red-100 text-red-700 rounded-2xl p-4">
-                  {error}
-                </div>
-              ) : filteredBeekeepers.length === 0 ? (
-                <div className="bg-amber-50 border border-amber-100 text-amber-800 rounded-2xl p-4">
-                  Keine Imker gefunden. Passe deine Filter an.
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 gap-4">
-                  {filteredBeekeepers.map((beekeeper: Beekeeper) => (
-                    <BeekeeperCard
-                      key={beekeeper.id}
-                      beekeeper={beekeeper}
-                      onClick={() => handleCardClick(beekeeper)}
-                    />
-                  ))}
-                </div>
-              )}
-
-              {userLocation && outsideBeekeepers.length > 0 && (
-                <div className="pt-4 border-t border-amber-100">
-                  <h4 className="text-lg font-semibold text-gray-900 mb-3">
-                    Imker außerhalb deines Suchradius
-                  </h4>
-                  <div className="grid grid-cols-1 gap-3">
-                    {outsideBeekeepers.map((beekeeper: Beekeeper) => (
-                      <BeekeeperCard
-                        key={beekeeper.id}
-                        beekeeper={beekeeper}
-                        onClick={() => handleCardClick(beekeeper)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </section>
-
-          <aside className="relative h-[calc(100vh-230px)] min-h-[560px]">
-            <div className="sticky top-24 h-full">
-              <div className="relative h-full bg-white rounded-3xl shadow-xl border border-amber-100 overflow-hidden">
-                <div className="absolute inset-4 rounded-2xl overflow-hidden border border-amber-100">
-                  <BeekeeperMap
-                    beekeepers={mapBeekeepers}
-                    onMarkerClick={handleMarkerClick}
-                    center={userLocation ? [userLocation.latitude, userLocation.longitude] : undefined}
-                    zoom={userLocation ? 10 : 7}
-                    userLocation={userLocation ? [userLocation.latitude, userLocation.longitude] : undefined}
-                    activeBeekeeperIds={activeBeekeeperIds}
-                    invalidateSizeKey={mapBeekeepers.length}
+            ) : filteredBeekeepers.length > 0 ? (
+              <div className="grid grid-cols-1 gap-4">
+                {filteredBeekeepers.map((bk) => (
+                  <BeekeeperCard 
+                    key={bk.id} 
+                    beekeeper={bk} 
+                    onClick={() => handleCardClick(bk)} 
                   />
-                </div>
-
-                {featuredBeekeeper && (
-                  <div className="absolute top-6 left-6 right-6 sm:right-auto sm:max-w-sm space-y-3 pointer-events-none">
-                    <div className="pointer-events-auto bg-white/90 backdrop-blur rounded-2xl shadow-2xl border border-amber-100 overflow-hidden">
-                      <div className="flex items-center gap-3 p-4 border-b border-amber-50">
-                        <div className="h-12 w-12 rounded-xl bg-amber-50 flex items-center justify-center text-2xl">🍯</div>
-                        <div>
-                          <p className="text-xs font-semibold text-amber-700">Imker in der Nähe</p>
-                          <h3 className="text-lg font-bold text-gray-900">{featuredBeekeeper.name}</h3>
-                          {featuredBeekeeper.distance !== undefined && (
-                            <p className="text-sm text-gray-600">{featuredBeekeeper.distance} km entfernt</p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="p-4 flex items-center justify-between gap-3">
-                        <div className="flex flex-wrap items-center gap-2 text-sm text-gray-700">
-                          <Droplets className="w-4 h-4 text-amber-600" />
-                          {featuredBeekeeper.honeyTypes.slice(0, 2).map((honey) => honey.name).join(', ')}
-                        </div>
-                        <button
-                          onClick={() => handleCardClick(featuredBeekeeper)}
-                          className="pointer-events-auto px-4 py-2 rounded-full bg-amber-500 text-white text-sm font-semibold shadow hover:bg-amber-600 transition-colors"
-                        >
-                          Details
-                        </button>
-                      </div>
-                    </div>
-
-                    <button
-                      className="pointer-events-auto inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-500 text-white text-sm font-semibold shadow hover:bg-amber-600 transition-colors"
-                      onClick={() => setIsMapModalOpen(true)}
-                    >
-                      Karte vergrößern
-                    </button>
-                  </div>
-                )}
+                ))}
               </div>
+            ) : (
+              <div className="bg-white border-2 border-dashed border-zinc-200 rounded-3xl p-12 text-center">
+                <div className="text-4xl mb-4">🐝</div>
+                <h3 className="text-xl font-bold text-zinc-900">Keine Imker gefunden</h3>
+                <p className="text-zinc-500 mt-2">Versuche es mit anderen Filtern oder einem größeren Umkreis.</p>
+                <button 
+                  onClick={() => setFilters(DEFAULT_FILTERS)}
+                  className="mt-6 text-amber-600 font-bold hover:underline"
+                >
+                  Alle Filter zurücksetzen
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Map Side (Desktop Sticky / Mobile Fullscreen Toggle) */}
+          <aside className={`${viewMode === 'list' ? 'hidden lg:block' : 'block'} h-[calc(100vh-180px)] lg:h-[calc(100vh-220px)] lg:sticky lg:top-40`}>
+            <div className="h-full w-full rounded-3xl overflow-hidden shadow-xl border border-white relative">
+              <BeekeeperMap
+                beekeepers={filteredBeekeepers}
+                onMarkerClick={handleCardClick}
+                userLocation={userLocation ? [userLocation.latitude, userLocation.longitude] : undefined}
+                isMobile={true} // Aktiviert Mobile-Optimierung in der Map-Komponente
+              />
             </div>
           </aside>
         </div>
       </div>
-      {/* Map Modal */}
-      <MapModal
-        isOpen={isMapModalOpen}
-        onClose={() => setIsMapModalOpen(false)}
-        beekeepers={mapBeekeepers}
-        onMarkerClick={handleMarkerClick}
-        center={
-          userLocation
-            ? [userLocation.latitude, userLocation.longitude]
-            : undefined
-        }
-        zoom={userLocation ? 10 : 7}
-        userLocation={userLocation ? [userLocation.latitude, userLocation.longitude] : undefined}
-        activeBeekeeperIds={activeBeekeeperIds}
-      />
 
-      {/* Beekeeper Detail Modal */}
-      <BeekeeperDetailModal
-        isOpen={isDetailModalOpen}
-        onClose={handleCloseDetailModal}
-        beekeeper={selectedBeekeeper}
-      />
+      {/* Mobile Floating Toggle Button */}
+      <div className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-40">
+        <button
+          onClick={() => {
+            setViewMode(viewMode === 'list' ? 'map' : 'list');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          className="bg-zinc-900 text-white px-6 py-3.5 rounded-full shadow-2xl flex items-center gap-3 font-bold text-sm hover:scale-105 active:scale-95 transition-all"
+        >
+          {viewMode === 'list' ? (
+            <><MapIcon size={18} className="text-amber-400" /> Karte anzeigen</>
+          ) : (
+            <><List size={18} className="text-amber-400" /> Liste anzeigen</>
+          )}
+        </button>
+      </div>
 
-      {/* Statistics Footer */}
-      <footer className="bg-white border-t border-gray-200 mt-12">
-        <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
-            <div>
-              <div className="text-3xl font-bold text-amber-600">{beekeepers.length}</div>
-              <div className="text-gray-600 mt-1">Registrierte Imker</div>
+      {/* Mobile Filter Drawer */}
+      {isFilterDrawerOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsFilterDrawerOpen(false)} />
+          <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-[32px] p-6 max-h-[90vh] overflow-y-auto shadow-2xl animate-in slide-in-from-bottom duration-300">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold">Filter</h2>
+              <button onClick={() => setIsFilterDrawerOpen(false)} className="p-2 bg-zinc-100 rounded-full"><X size={20}/></button>
             </div>
-            <div>
-              <div className="text-3xl font-bold text-amber-600">
-                {availableHoneyTypes.length}
+            
+            <div className="space-y-6">
+              <div>
+                <label className="text-sm font-bold text-zinc-900 block mb-3 uppercase tracking-wider">Ernährung</label>
+                <button 
+                  onClick={() => setFilters(f => ({...f, bioOnly: !f.bioOnly}))}
+                  className={`w-full p-4 rounded-2xl border-2 text-left transition-all flex items-center justify-between ${filters.bioOnly ? 'border-green-500 bg-green-50' : 'border-zinc-100 bg-zinc-50'}`}
+                >
+                  <span className="font-semibold">🌿 Nur Bio-Imker</span>
+                  {filters.bioOnly && <BadgeCheck className="text-green-600" size={20}/>}
+                </button>
               </div>
-              <div className="text-gray-600 mt-1">Honigsorten verfügbar</div>
-            </div>
-            <div>
-              <div className="text-3xl font-bold text-amber-600">100%</div>
-              <div className="text-gray-600 mt-1">Regional & Nachhaltig</div>
+
+              <div>
+                <label className="text-sm font-bold text-zinc-900 block mb-3 uppercase tracking-wider">Umkreis</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[10, 25, 50].map(dist => (
+                    <button
+                      key={dist}
+                      onClick={() => setFilters(f => ({...f, maxDistance: f.maxDistance === dist ? null : dist}))}
+                      className={`p-3 rounded-xl border-2 text-sm font-bold ${filters.maxDistance === dist ? 'border-amber-500 bg-amber-50 text-amber-700' : 'border-zinc-100 text-zinc-500'}`}
+                    >
+                      {dist} km
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <button 
+                onClick={() => setIsFilterDrawerOpen(false)}
+                className="w-full bg-amber-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-amber-200 mt-4"
+              >
+                Ergebnisse anzeigen
+              </button>
             </div>
           </div>
         </div>
-      </footer>
+      )}
+
+      {/* Modals */}
+      {selectedBeekeeper && (
+        <BeekeeperDetailModal
+          isOpen={isDetailModalOpen}
+          onClose={() => setIsDetailModalOpen(false)}
+          beekeeper={selectedBeekeeper}
+        />
+      )}
     </main>
   );
 }
