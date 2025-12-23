@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { useBeekeeperStore } from '@/lib/store/beekeeperStore';
 import { beekeepersApi } from '@/lib/api/beekeepers';
@@ -9,7 +9,7 @@ import BeekeeperCard from '@/components/cards/BeekeeperCard';
 import LocationSearch from '@/components/location/LocationSearch';
 import MapModal from '@/components/modals/MapModal';
 import BeekeeperDetailModal from '@/components/modals/BeekeeperDetailModal';
-import { BadgeCheck, Droplets, Loader2, MapPin, Package, Ruler } from 'lucide-react';
+import { BadgeCheck, Droplets, List, Loader2, Map, MapPin, Package, Ruler } from 'lucide-react';
 import Link from 'next/link';
 
 type JarSize = 250 | 500 | 1000;
@@ -103,6 +103,7 @@ export default function Home() {
   const [isMobile, setIsMobile] = useState(false);
   const [pendingMaxDistance, setPendingMaxDistance] = useState(DEFAULT_FILTERS.maxDistance);
   const [pendingMaxPrice, setPendingMaxPrice] = useState(DEFAULT_FILTERS.priceRange[1]);
+  const filterContainerRef = useRef<HTMLDivElement>(null);
 
   // Initial load - alle Imker ohne Location
   useEffect(() => {
@@ -147,6 +148,23 @@ export default function Home() {
       document.body.classList.remove('overflow-hidden');
     };
   }, [isFilterDrawerOpen]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        filterContainerRef.current &&
+        !filterContainerRef.current.contains(event.target as Node)
+      ) {
+        setOpenFilter(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   useEffect(() => {
     setPendingMaxDistance(filters.maxDistance);
@@ -531,7 +549,7 @@ export default function Home() {
             </button>
           </div>
 
-          <div className="hidden sm:flex flex-wrap items-center gap-3">
+          <div ref={filterContainerRef} className="hidden sm:flex flex-wrap items-center gap-3">
             <span className="text-sm font-semibold text-gray-700">Filter:</span>
 
             <div className="relative">
@@ -654,7 +672,7 @@ export default function Home() {
                 Gebindegröße
               </button>
               {openFilter === 'jar' && (
-                <div className="absolute z-20 mt-2 w-64 bg-white border border-amber-100 rounded-2xl shadow-xl p-3 space-y-2">
+                <div className="absolute right-0 z-20 mt-2 w-64 bg-white border border-amber-100 rounded-2xl shadow-xl p-3 space-y-2">
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Glasgrößen</p>
                   <div className="flex flex-wrap gap-2">
                     {[250, 500, 1000].map((size) => (
@@ -687,7 +705,7 @@ export default function Home() {
                 <Droplets className="w-4 h-4" /> Honigsorten
               </button>
               {openFilter === 'honey' && (
-                <div className="absolute z-20 mt-2 w-72 bg-white border border-amber-100 rounded-2xl shadow-xl p-3 space-y-2">
+                <div className="absolute right-0 z-20 mt-2 w-72 bg-white border border-amber-100 rounded-2xl shadow-xl p-3 space-y-2">
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Sorten</p>
                   <div className="flex flex-wrap gap-2">
                     {availableHoneyTypes.map((type) => (
@@ -1112,7 +1130,17 @@ export default function Home() {
             onClick={() => setMobileView((prev) => (prev === 'list' ? 'map' : 'list'))}
             className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-amber-500 text-white text-sm font-semibold shadow-lg hover:bg-amber-600"
           >
-            {mobileView === 'list' ? 'Karte anzeigen' : 'Liste anzeigen'}
+            {mobileView === 'list' ? (
+              <>
+                <Map className="h-4 w-4" />
+                Karte anzeigen
+              </>
+            ) : (
+              <>
+                <List className="h-4 w-4" />
+                Liste anzeigen
+              </>
+            )}
           </button>
         </div>
       )}
