@@ -852,7 +852,7 @@ export default function Home() {
                     zoom={userLocation ? 10 : 7}
                     userLocation={userLocation ? [userLocation.latitude, userLocation.longitude] : undefined}
                     activeBeekeeperIds={activeBeekeeperIds}
-                    invalidateSizeKey={mapBeekeepers.length}
+                    invalidateSizeKey={isMobile ? mobileView : 'desktop'}
                     requireTapToActivate={isMobile}
                   />
                 </div>

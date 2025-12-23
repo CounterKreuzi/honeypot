@@ -50,6 +50,7 @@ export default function BeekeeperMap({
   const previousCenterRef = useRef<[number, number] | null>(null);
   const previousZoomRef = useRef<number | null>(null);
   const previousFitSignatureRef = useRef('');
+  const hasFittedRef = useRef(false);
   const interactionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const getLowestPrice = useCallback((beekeeper: Beekeeper) => {
@@ -323,6 +324,7 @@ export default function BeekeeperMap({
 
     if (userLocationChanged) {
       previousUserLocationRef.current = userLocation;
+      hasFittedRef.current = false;
     }
 
     const beekeepersToFocus = activeBeekeeperIds
@@ -355,7 +357,8 @@ export default function BeekeeperMap({
 
     const shouldFitBounds =
       fitPoints.length > 0 &&
-      (userLocationChanged || fitSignature !== previousFitSignatureRef.current);
+      !hasFittedRef.current &&
+      fitSignature !== previousFitSignatureRef.current;
 
     if (shouldFitBounds) {
       if (fitPoints.length === 1) {
@@ -370,6 +373,7 @@ export default function BeekeeperMap({
       }
 
       previousFitSignatureRef.current = fitSignature;
+      hasFittedRef.current = true;
     }
 
     return () => {
