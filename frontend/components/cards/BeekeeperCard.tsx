@@ -15,8 +15,68 @@ export default function BeekeeperCard({ beekeeper, onClick }: BeekeeperCardProps
   const hasImage = beekeeper.photo || beekeeper.logo;
   const imageUrl = beekeeper.photo || beekeeper.logo || '/placeholder-honey.jpg';
 
-  // Check if open now (simplified - you can enhance this)
-  const isOpenNow = beekeeper.openingHours ? true : false;
+  const getTodayKey = () => {
+    const dayIndex = new Date().getDay();
+    const dayKeys: Array<keyof NonNullable<Beekeeper['openingHours']>> = [
+      'sunday',
+      'monday',
+      'tuesday',
+      'wednesday',
+      'thursday',
+      'friday',
+      'saturday',
+    ];
+    return dayKeys[dayIndex];
+  };
+
+  const parseTimeToMinutes = (time: string): number | null => {
+    const match = time.trim().match(/(\d{1,2})[:.](\d{2})/);
+    if (!match) return null;
+    const hours = Number(match[1]);
+    const minutes = Number(match[2]);
+    if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
+    return hours * 60 + minutes;
+  };
+
+  const getOpeningStatus = () => {
+    if (!beekeeper.openingHours) {
+      return { isOpenNow: false, isClosingSoon: false };
+    }
+
+    const todayKey = getTodayKey();
+    const todaysHours = beekeeper.openingHours[todayKey];
+    if (!todaysHours) {
+      return { isOpenNow: false, isClosingSoon: false };
+    }
+
+    const lowerHours = todaysHours.toLowerCase();
+    if (lowerHours.includes('geschlossen')) {
+      return { isOpenNow: false, isClosingSoon: false };
+    }
+
+    const times = todaysHours.match(/(\d{1,2}[:.]\d{2})/g);
+    if (!times || times.length < 2) {
+      return { isOpenNow: false, isClosingSoon: false };
+    }
+
+    const openMinutes = parseTimeToMinutes(times[0]);
+    const closeMinutes = parseTimeToMinutes(times[times.length - 1]);
+    if (openMinutes === null || closeMinutes === null || closeMinutes <= openMinutes) {
+      return { isOpenNow: false, isClosingSoon: false };
+    }
+
+    const now = new Date();
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const isOpenNow = nowMinutes >= openMinutes && nowMinutes < closeMinutes;
+    const minutesToClose = closeMinutes - nowMinutes;
+
+    return {
+      isOpenNow,
+      isClosingSoon: isOpenNow && minutesToClose <= 30,
+    };
+  };
+
+  const { isOpenNow, isClosingSoon } = getOpeningStatus();
 
   // Format number as Euro price with comma decimals
   const formatEuro = (n: number) =>
@@ -63,6 +123,20 @@ export default function BeekeeperCard({ beekeeper, onClick }: BeekeeperCardProps
   const min250 = getMinPrice('price250');
   const min500 = getMinPrice('price500');
   const min1000 = getMinPrice('price1000');
+  const priceOptions = [
+    { size: 250, price: min250 },
+    { size: 500, price: min500 },
+    { size: 1000, price: min1000 },
+  ].filter((option): option is { size: number; price: number } => option.price != null);
+  const baseOption = priceOptions.reduce<{ size: number; price: number } | null>(
+    (cheapest, option) => {
+      if (!cheapest || option.price < cheapest.price) {
+        return option;
+      }
+      return cheapest;
+    },
+    null
+  );
 
   return (
     <div
@@ -109,10 +183,16 @@ export default function BeekeeperCard({ beekeeper, onClick }: BeekeeperCardProps
                 </span>
               </div>
             </div>
-            {isOpenNow && (
-              <span className="bg-green-100 text-green-700 text-xs font-semibold px-3 py-1 rounded-full">
-                Geöffnet
+            {isClosingSoon ? (
+              <span className="bg-orange-100 text-orange-700 text-xs font-semibold px-3 py-1 rounded-full">
+                Schließt bald
               </span>
+            ) : (
+              isOpenNow && (
+                <span className="bg-green-100 text-green-700 text-xs font-semibold px-3 py-1 rounded-full">
+                  Geöffnet
+                </span>
+              )
             )}
           </div>
           <button
@@ -155,25 +235,22 @@ export default function BeekeeperCard({ beekeeper, onClick }: BeekeeperCardProps
             )}
 
             {/* Price overview by weight */}
-            {(min250 != null || min500 != null || min1000 != null) && (
-              <div className="text-sm text-gray-700 flex flex-wrap gap-x-4 gap-y-1">
-                {min250 != null && (
-                  <span>
-                    <span className="text-gray-600">250 g ab </span>
-                    <span className="font-semibold text-amber-600">€ {formatEuro(min250)}</span>
+            {baseOption && (
+              <div className="space-y-2">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl font-bold text-amber-600">
+                    ab € {formatEuro(baseOption.price)}
                   </span>
-                )}
-                {min500 != null && (
-                  <span>
-                    <span className="text-gray-600">500 g ab </span>
-                    <span className="font-semibold text-amber-600">€ {formatEuro(min500)}</span>
-                  </span>
-                )}
-                {min1000 != null && (
-                  <span>
-                    <span className="text-gray-600">1000 g ab </span>
-                    <span className="font-semibold text-amber-600">€ {formatEuro(min1000)}</span>
-                  </span>
+                  <span className="text-xs text-gray-500">für {baseOption.size} g</span>
+                </div>
+                {priceOptions.length > 1 && (
+                  <div className="text-xs text-gray-500 flex flex-wrap gap-x-3 gap-y-1">
+                    {priceOptions.map((option) => (
+                      <span key={option.size}>
+                        {option.size} g · € {formatEuro(option.price)}
+                      </span>
+                    ))}
+                  </div>
                 )}
               </div>
             )}
