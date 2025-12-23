@@ -101,6 +101,8 @@ export default function Home() {
   const [mobileView, setMobileView] = useState<'list' | 'map'>('list');
   const [mapPreview, setMapPreview] = useState<Beekeeper | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [pendingMaxDistance, setPendingMaxDistance] = useState(DEFAULT_FILTERS.maxDistance);
+  const [pendingMaxPrice, setPendingMaxPrice] = useState(DEFAULT_FILTERS.priceRange[1]);
 
   // Initial load - alle Imker ohne Location
   useEffect(() => {
@@ -145,6 +147,38 @@ export default function Home() {
       document.body.classList.remove('overflow-hidden');
     };
   }, [isFilterDrawerOpen]);
+
+  useEffect(() => {
+    setPendingMaxDistance(filters.maxDistance);
+  }, [filters.maxDistance]);
+
+  useEffect(() => {
+    setPendingMaxPrice(filters.priceRange[1]);
+  }, [filters.priceRange]);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setFilters((prev) =>
+        prev.maxDistance === pendingMaxDistance
+          ? prev
+          : { ...prev, maxDistance: pendingMaxDistance }
+      );
+    }, 180);
+
+    return () => window.clearTimeout(timeout);
+  }, [pendingMaxDistance]);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setFilters((prev) =>
+        prev.priceRange[1] === pendingMaxPrice
+          ? prev
+          : { ...prev, priceRange: [prev.priceRange[0], pendingMaxPrice] }
+      );
+    }, 180);
+
+    return () => window.clearTimeout(timeout);
+  }, [pendingMaxPrice]);
 
   const loadBeekeepers = async () => {
     try {
@@ -406,14 +440,24 @@ export default function Home() {
     });
   };
 
+  const clampValue = (value: number, min: number, max: number) =>
+    Math.min(Math.max(value, min), max);
+
   const handleDistanceChange = (value: number) => {
-    setFilters((prev) => ({ ...prev, maxDistance: value }));
+    setPendingMaxDistance(clampValue(value, 5, 200));
   };
 
   const handleMaxPriceChange = (value: number) => {
-    setFilters((prev) => ({ ...prev, priceRange: [prev.priceRange[0], value] }));
+    setPendingMaxPrice(clampValue(value, 5, 50));
   };
 
+  const activeFilterCount =
+    filters.honeyTypes.length +
+    filters.jarSizes.length +
+    (filters.hasWebsite ? 1 : 0) +
+    (filters.openNow ? 1 : 0) +
+    (filters.priceRange[1] !== DEFAULT_FILTERS.priceRange[1] ? 1 : 0) +
+    (filters.maxDistance !== DEFAULT_FILTERS.maxDistance ? 1 : 0);
 
   return (
     <main className="min-h-screen bg-zinc-50 pb-24 sm:pb-0">
@@ -428,7 +472,7 @@ export default function Home() {
           </div>
 
           <div className="flex-1 min-w-[260px] flex items-center gap-3 justify-end">
-            <div className="flex-1 max-w-xl">
+            <div className="hidden sm:block flex-1 max-w-xl">
               <LocationSearch
                 onLocationChange={handleLocationChange}
                 currentLocation={userLocation?.address}
@@ -460,13 +504,24 @@ export default function Home() {
       </header>
 
       <section className="bg-white border-b shadow-sm">
+        <div className="sm:hidden sticky top-0 z-20 bg-white/95 backdrop-blur border-b border-amber-100 px-4 py-3">
+          <LocationSearch
+            onLocationChange={handleLocationChange}
+            currentLocation={userLocation?.address}
+          />
+        </div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex items-center justify-between gap-3 sm:hidden">
             <button
               onClick={() => setIsFilterDrawerOpen(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-amber-200 bg-amber-50 text-amber-700 text-sm font-semibold"
+              className="relative inline-flex items-center gap-2 px-4 py-2 rounded-full border border-amber-200 bg-amber-50 text-amber-700 text-sm font-semibold"
             >
               Filter
+              {activeFilterCount > 0 && (
+                <span className="absolute -top-2 -right-1 min-w-[20px] h-5 px-1 rounded-full bg-red-500 text-white text-[11px] font-semibold flex items-center justify-center shadow">
+                  {activeFilterCount}
+                </span>
+              )}
             </button>
             <button
               onClick={resetFilters}
@@ -490,23 +545,41 @@ export default function Home() {
                 disabled={isDistanceDisabled}
               >
                 <MapPin className="w-4 h-4" />
-                {isDistanceDisabled ? 'Entfernung (Adresse nötig)' : `${filters.maxDistance} km`}
+                {isDistanceDisabled ? 'Entfernung (Adresse nötig)' : `${pendingMaxDistance} km`}
               </button>
               {openFilter === 'distance' && !isDistanceDisabled && (
                 <div className="absolute z-20 mt-2 w-72 bg-white border border-amber-100 rounded-2xl shadow-xl p-3 space-y-3">
                   <div className="flex items-center justify-between text-sm font-semibold text-gray-700">
                     <span>Suchradius</span>
-                    <span className="text-amber-600">{filters.maxDistance} km</span>
+                    <span className="text-amber-600">{pendingMaxDistance} km</span>
                   </div>
                   <input
                     type="range"
                     min="5"
                     max="200"
                     step="5"
-                    value={filters.maxDistance}
+                    value={pendingMaxDistance}
                     onChange={(e) => handleDistanceChange(Number(e.target.value))}
+                    list="distance-ticks"
                     className="w-full accent-amber-500"
                   />
+                  <datalist id="distance-ticks">
+                    {[5, 10, 20, 50, 100, 150, 200].map((value) => (
+                      <option key={value} value={value} />
+                    ))}
+                  </datalist>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={5}
+                      max={200}
+                      step={5}
+                      value={pendingMaxDistance}
+                      onChange={(e) => handleDistanceChange(Number(e.target.value))}
+                      className="w-24 rounded-lg border border-amber-200 px-2 py-1 text-sm text-gray-700"
+                    />
+                    <span className="text-xs text-gray-500">km</span>
+                  </div>
                   <div className="flex justify-between text-xs text-gray-500">
                     <span>5 km</span>
                     <span>200 km</span>
@@ -525,23 +598,41 @@ export default function Home() {
                 }`}
               >
                 <BadgeCheck className="w-4 h-4" />
-                Preis bis {filters.priceRange[1]}€
+                Preis bis {pendingMaxPrice}€
               </button>
               {openFilter === 'price' && (
                 <div className="absolute z-20 mt-2 w-72 bg-white border border-amber-100 rounded-2xl shadow-xl p-3 space-y-3">
                   <div className="flex items-center justify-between text-sm font-semibold text-gray-700">
                     <span>Maximaler Preis</span>
-                    <span className="text-amber-600">{filters.priceRange[1]}€</span>
+                    <span className="text-amber-600">{pendingMaxPrice}€</span>
                   </div>
                   <input
                     type="range"
                     min="5"
                     max="50"
                     step="1"
-                    value={filters.priceRange[1]}
+                    value={pendingMaxPrice}
                     onChange={(e) => handleMaxPriceChange(Number(e.target.value))}
+                    list="price-ticks"
                     className="w-full accent-amber-500"
                   />
+                  <datalist id="price-ticks">
+                    {[5, 10, 15, 20, 30, 40, 50].map((value) => (
+                      <option key={value} value={value} />
+                    ))}
+                  </datalist>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={5}
+                      max={50}
+                      step={1}
+                      value={pendingMaxPrice}
+                      onChange={(e) => handleMaxPriceChange(Number(e.target.value))}
+                      className="w-24 rounded-lg border border-amber-200 px-2 py-1 text-sm text-gray-700"
+                    />
+                    <span className="text-xs text-gray-500">€</span>
+                  </div>
                   <div className="flex justify-between text-xs text-gray-500">
                     <span>5€</span>
                     <span>50€</span>
@@ -663,8 +754,39 @@ export default function Home() {
                   {error}
                 </div>
               ) : filteredBeekeepers.length === 0 ? (
-                <div className="bg-amber-50 border border-amber-100 text-amber-800 rounded-2xl p-4">
-                  Keine Imker gefunden. Passe deine Filter an.
+                <div className="bg-amber-50 border border-amber-100 text-amber-800 rounded-2xl p-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div className="flex items-start gap-3">
+                      <span className="text-3xl">🐝</span>
+                      <div>
+                        <h3 className="text-base font-semibold">Keine Imker gefunden</h3>
+                        <p className="text-sm text-amber-700">
+                          Passe deinen Suchradius an oder setze Filter zurück.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleDistanceChange(
+                            Math.min(pendingMaxDistance + 20, 200)
+                          )
+                        }
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-amber-200 text-amber-700 text-sm font-semibold hover:border-amber-300"
+                        disabled={!userLocation}
+                      >
+                        Suchradius erweitern
+                      </button>
+                      <button
+                        type="button"
+                        onClick={resetFilters}
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-500 text-white text-sm font-semibold shadow hover:bg-amber-600"
+                      >
+                        Filter zurücksetzen
+                      </button>
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-4">
@@ -854,18 +976,37 @@ export default function Home() {
             <div className="space-y-3">
               <div className="flex items-center justify-between text-sm font-semibold text-gray-700">
                 <span>Suchradius</span>
-                <span className="text-amber-600">{filters.maxDistance} km</span>
+                <span className="text-amber-600">{pendingMaxDistance} km</span>
               </div>
               <input
                 type="range"
                 min="5"
                 max="200"
                 step="5"
-                value={filters.maxDistance}
+                value={pendingMaxDistance}
                 onChange={(e) => handleDistanceChange(Number(e.target.value))}
+                list="distance-ticks-mobile"
                 className="w-full accent-amber-500"
                 disabled={isDistanceDisabled}
               />
+              <datalist id="distance-ticks-mobile">
+                {[5, 10, 20, 50, 100, 150, 200].map((value) => (
+                  <option key={value} value={value} />
+                ))}
+              </datalist>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={5}
+                  max={200}
+                  step={5}
+                  value={pendingMaxDistance}
+                  onChange={(e) => handleDistanceChange(Number(e.target.value))}
+                  className="w-24 rounded-lg border border-amber-200 px-2 py-1 text-sm text-gray-700"
+                  disabled={isDistanceDisabled}
+                />
+                <span className="text-xs text-gray-500">km</span>
+              </div>
               <div className="flex justify-between text-xs text-gray-500">
                 <span>5 km</span>
                 <span>200 km</span>
@@ -875,17 +1016,35 @@ export default function Home() {
             <div className="space-y-3">
               <div className="flex items-center justify-between text-sm font-semibold text-gray-700">
                 <span>Maximaler Preis</span>
-                <span className="text-amber-600">{filters.priceRange[1]}€</span>
+                <span className="text-amber-600">{pendingMaxPrice}€</span>
               </div>
               <input
                 type="range"
                 min="5"
                 max="50"
                 step="1"
-                value={filters.priceRange[1]}
+                value={pendingMaxPrice}
                 onChange={(e) => handleMaxPriceChange(Number(e.target.value))}
+                list="price-ticks-mobile"
                 className="w-full accent-amber-500"
               />
+              <datalist id="price-ticks-mobile">
+                {[5, 10, 15, 20, 30, 40, 50].map((value) => (
+                  <option key={value} value={value} />
+                ))}
+              </datalist>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={5}
+                  max={50}
+                  step={1}
+                  value={pendingMaxPrice}
+                  onChange={(e) => handleMaxPriceChange(Number(e.target.value))}
+                  className="w-24 rounded-lg border border-amber-200 px-2 py-1 text-sm text-gray-700"
+                />
+                <span className="text-xs text-gray-500">€</span>
+              </div>
               <div className="flex justify-between text-xs text-gray-500">
                 <span>5€</span>
                 <span>50€</span>
